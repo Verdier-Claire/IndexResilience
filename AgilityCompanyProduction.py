@@ -41,7 +41,39 @@ class AgilityCompanyProduct:
     def agility_by_naf(self, data):
         data_agility = data.groupby(['code_NAF'])['versatility_by_product_and_NAF'].sum()
         data_agility = data_agility.reset_index()
-        data_agility.to_csv(self.path_data_out + "AgilityCompanyProduction.csv", sep=";", index=False)
+        data_agility.rename(columns={'code_NAF': 'code'})
+        # data_agility.to_csv(self.path_data_out + "AgilityCompanyProduction.csv", sep=";", index=False)
+        return data_agility
+
+    def main_acp(self):
+        ppagility = PreprocessAgility()
+        data_agility = ppagility.load_data()
+        data_agility = ppagility.similarity_weight(data_agility)
+
+        data_agility = self.sum_weight_by_product_b(data_agility)
+        data_agility['sum_prox_by_product_B'] = data_agility.apply(lambda row: self.weight_by_product(
+            row['weight'], row['sum_prox_by_product_B']), axis=1)
+        data_agility = self.sum_by_product_interest(data_agility)
+        data_agility = data_agility[['Product_A', 'sum_prox_for_product_A']]
+        data_agility = data_agility.drop_duplicates()
+
+        codehscpf4 = CodeHSCPF()
+        data_hs_cpf4 = codehscpf4.load_hs_cpf4()
+        data_naf_cpf4 = codehscpf4.load_naf_cpf6()
+        data_naf_cpf4 = codehscpf4.preprocess(data_naf_cpf4)
+        data_hs_cpf4 = codehscpf4.merge(data_hs_cpf4, data_naf_cpf4)
+        data_hs_naf = codehscpf4.data_interest(data_hs_cpf4)
+        del data_hs_cpf4, data_naf_cpf4
+
+        data_hs_naf = data_hs_naf.rename(columns={'hs4': 'Product_A'})
+        data = data_agility.merge(data_hs_naf, on=['Product_A'])
+
+        data = self.weight_prox_product(data)
+        data_final = self.agility_by_naf(data)
+        del data
+
+        print("finish to comute Agility Comapny's Production")
+        return data_final
 
 
 class PreprocessAgility:
@@ -87,35 +119,4 @@ class CodeHSCPF:
         return data
 
 
-def main():
-    ppagility = PreprocessAgility()
-    data_agility = ppagility.load_data()
-    data_agility = ppagility.similarity_weight(data_agility)
 
-    acp = AgilityCompanyProduct()
-    data_agility = acp.sum_weight_by_product_b(data_agility)
-    data_agility['sum_prox_by_product_B'] = data_agility.apply(lambda row: acp.weight_by_product(
-        row['weight'],  row['sum_prox_by_product_B']), axis=1)
-    data_agility = acp.sum_by_product_interest(data_agility)
-    data_agility = data_agility[['Product_A', 'sum_prox_for_product_A']]
-    data_agility = data_agility.drop_duplicates()
-
-    codehscpf4 = CodeHSCPF()
-    data_hs_cpf4 = codehscpf4.load_hs_cpf4()
-    data_naf_cpf4 = codehscpf4.load_naf_cpf6()
-    data_naf_cpf4 = codehscpf4.preprocess(data_naf_cpf4)
-    data_hs_cpf4 = codehscpf4.merge(data_hs_cpf4, data_naf_cpf4)
-    data_hs_naf = codehscpf4.data_interest(data_hs_cpf4)
-    del data_hs_cpf4, data_naf_cpf4
-
-    data_hs_naf = data_hs_naf.rename(columns={'hs4': 'Product_A'})
-    data = data_agility.merge(data_hs_naf, on=['Product_A'])
-
-    data = acp.weight_prox_product(data)
-    acp.agility_by_naf(data)
-
-    print("finish")
-
-
-if __name__ == '__main__':
-    main()
