@@ -59,6 +59,7 @@ class Versatility:
 
         data_versatility = self.versatility_by_naf(data_versatility)
         data_versatility.rename(columns={'activity_naf_code': 'code'}, inplace=True)
+        print("finish to compute Versatility of company's workforce")
         return data_versatility
 
 
