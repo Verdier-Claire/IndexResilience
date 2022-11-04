@@ -22,7 +22,7 @@ class Versatility:
 
         naf_rome = data_naf_rome.groupby(['activity_naf_code'])['Weight_versatility'].sum()
         naf_rome = naf_rome.reset_index()
-        naf_rome.rename(columns={'activity_naf_code': 'code'})
+        naf_rome.rename(columns={'activity_naf_code': 'code','Weight_versatility': 'Versatility'}, inplace=True)
         # naf_rome.to_csv(self.path_data_out + "VersatilityCompanyWorkforce.csv", sep=";", index=False)
         return naf_rome
 
@@ -58,7 +58,6 @@ class Versatility:
         data_versatility = self.merge_data(data_versatility, data_naf_rome)
 
         data_versatility = self.versatility_by_naf(data_versatility)
-        data_versatility.rename(columns={'activity_naf_code': 'code'}, inplace=True)
         print("finish to compute Versatility of company's workforce")
         return data_versatility
 
