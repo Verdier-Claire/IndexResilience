@@ -12,7 +12,7 @@ Soit $L_H$ l'ensemble des produits. <br />
 On pose $\phi(p,q)$ la fonction de dissimilarité entre le produit p et le produit q. <br />
 On peut définir la diversification de la production d'une entreprise de la manière suivante : <br />
 
-$$ACP(e) = \sum_{i \in \{1, 2, ..., n_E\}} \lambda_{p_i} \sum_{q \in L_H} \frac{1 - \phi(p_i, q)}{\sum_r \in L_H} 1 - \phi(q,r)$$
+$$ACP(e) = \sum_{i \in \{1, 2, ..., n_E\}} \lambda_{p_i} \sum_{q \in L_H} \frac{1 - \phi(p_i, q)}{\sum_{r \in L_H} 1 - \phi(q,r)}$$
 
 
 ## Indice de la polyvalence de la main-d'œuvre d'une entreprise
