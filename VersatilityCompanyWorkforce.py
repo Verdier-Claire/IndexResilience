@@ -58,6 +58,7 @@ class Versatility:
         data_versatility = self.merge_data(data_versatility, data_naf_rome)
 
         data_versatility = self.versatility_by_naf(data_versatility)
+        data_versatility.rename(columns={'activity_naf_code': 'code'}, inplace=True)
         return data_versatility
 
 

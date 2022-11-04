@@ -73,6 +73,7 @@ class AgilityCompanyProduct:
         del data
 
         print("finish to comute Agility Comapny's Production")
+        data_final.rename(columns={'code_NAF': 'code'}, inplace=True)
         return data_final
 
 
