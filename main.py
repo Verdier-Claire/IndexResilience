@@ -2,7 +2,7 @@ import os
 
 from AgilityCompanyProduction import AgilityCompanyProduct
 from LocalBackupSupplier import LocalBackupSuppliers
-from versatilityCompanyWorkforce import Versatility
+from VersatilityCompanyWorkforce import Versatility
 
 Versa = Versatility()
 lbs = LocalBackupSuppliers()
