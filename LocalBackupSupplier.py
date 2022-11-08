@@ -69,7 +69,7 @@ class LocalBackupSuppliers:
             ret = ret[:-1]
         return ret
 
-    def main_lbs(self):
+    def main_lbs(self, radius=100):
 
         data_turnover = self.load_turnover_data()
         print('load data_turnover')
@@ -81,7 +81,7 @@ class LocalBackupSuppliers:
         data_office = data_office.merge(data_turnover, on=['code'])  # perte de 7727 entreprises
         del data_turnover
         print('merge data')
-        data_office = data_office.sample(100)
+        # data_office = data_office.sample(100)
         data_office[['longitude', 'latitude']] = data_office['coordinates'].str.replace(
             '(', '', regex=True).str.replace(')', '', regex=True).str.split(",", 1, expand=True)
         data_office['longitude'] = data_office['longitude'].astype('float')
@@ -90,7 +90,7 @@ class LocalBackupSuppliers:
                       in itertools.combinations(data_office.index, 2)
                       if np.sqrt((data_office.loc[index1, 'longitude'] - data_office.loc[index2, 'longitude']) ** 2 +
                                  (data_office.loc[index1, 'latitude'] - data_office.loc[index2, 'latitude']) ** 2) *
-                      111.319 <= 200]
+                      111.319 <= radius]
         print('finis compute proximities between siret')
         data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret_prox'])
         data_siret_prox = data_siret_prox.groupby(['siret'])['siret_prox'].apply(list)
