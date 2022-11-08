@@ -13,6 +13,6 @@ if __name__ == '__main__':
     data_agitility = acp.main_acp()
     data_localbackup = lbs.main_lbs()
 
-    data_final = data_agitility.merge(data_versatility, on=['code'])
-    data_final = data_final.merge(data_localbackup, on=['code'])
+    data_final = data_localbackup.merge(data_versatility, on=['code'], how='left')
+    data_final = data_final.merge(data_agitility, on=['code'], how='left')
     data_final.to_csv(os.getcwd() + "/data/data_out/indexResilient.csv", sep=';')

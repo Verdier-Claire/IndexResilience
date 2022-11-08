@@ -41,7 +41,8 @@ class AgilityCompanyProduct:
     def agility_by_naf(self, data):
         data_agility = data.groupby(['code_NAF'])['versatility_by_product_and_NAF'].sum()
         data_agility = data_agility.reset_index()
-        data_agility.rename(columns={'code_NAF': 'code'})
+        data_agility.rename(columns={'code_NAF': 'code', 'versatility_by_product_and_NAF': 'agility_production'},
+                            inplace=True)
         # data_agility.to_csv(self.path_data_out + "AgilityCompanyProduction.csv", sep=";", index=False)
         return data_agility
 
@@ -72,7 +73,8 @@ class AgilityCompanyProduct:
         data_final = self.agility_by_naf(data)
         del data
 
-        print("finish to comute Agility Comapny's Production")
+        print("finish to compute Agility of Company's Production")
+        data_final.rename(columns={'code_NAF': 'code'}, inplace=True)
         return data_final
 
 
