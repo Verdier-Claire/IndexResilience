@@ -97,7 +97,7 @@ class LocalBackupSuppliers:
         data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret_prox'])
         data_siret_prox = data_siret_prox.groupby(['siret'])['siret_prox'].apply(list)
         data_siret_prox = data_siret_prox.reset_index()
-        data_siret_prox.to_csv(self.path_data_in + "/da")
+        data_siret_prox.to_csv(self.path_data_in + "data_siret_prox_" + str(radius) + "km.csv", sep=";", index=False)
         data_office = data_office.merge(data_siret_prox, on=['siret'], how='left')
         data_office['siret_prox'].fillna("", inplace=True)
 
