@@ -43,7 +43,7 @@ class AgilityCompanyProduct:
         data_agility = data_agility.reset_index()
         data_agility.rename(columns={'code_NAF': 'code', 'versatility_by_product_and_NAF': 'agility_production'},
                             inplace=True)
-        # data_agility.to_csv(self.path_data_out + "AgilityCompanyProduction.csv", sep=";", index=False)
+        data_agility.to_csv(self.path_data_out + "AgilityCompanyProduction.csv", sep=";", index=False)
         return data_agility
 
     def main_acp(self):
