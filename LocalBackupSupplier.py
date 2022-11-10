@@ -46,6 +46,7 @@ class LocalBackupSuppliers:
         return list_siret_prox
 
     def nb_local_backup_supplier(self, data):
+        data['dest'] = data['dest'].apply(eval)
         data['Card_lbs'] = data.apply(lambda row: self.card_lbs(data, row['dest'], row['siret_prox'], row['qte']),
                                       axis=1)
         return data
@@ -57,7 +58,7 @@ class LocalBackupSuppliers:
             list_siret = list_cpf4['siret']
             list_lbs = list(set(list_siret) & set(dist_siret))
             if (type(list_lbs) is int) or (list_lbs == []):
-                card_supplier.append(weight)  # Dans l'équation final on prend le max entre 1 et le card_supplier
+                card_supplier.append(weight)  # Dans l'équation finale, on prend le max entre 1 et le card_supplier
             else:
                 card_supplier.append(len(list_lbs)*weight)
         ret = sum(card_supplier)
@@ -81,7 +82,7 @@ class LocalBackupSuppliers:
         data_office = data_office.merge(data_turnover, on=['code'])  # perte de 7727 entreprises
         del data_turnover
         print('merge data')
-        # data_office = data_office.sample(100)
+        data_office = data_office.sample(1000)
         data_office[['longitude', 'latitude']] = data_office['coordinates'].str.replace(
             '(', '', regex=True).str.replace(')', '', regex=True).str.split(",", 1, expand=True)
         data_office['longitude'] = data_office['longitude'].astype('float')
@@ -91,10 +92,12 @@ class LocalBackupSuppliers:
                       if np.sqrt((data_office.loc[index1, 'longitude'] - data_office.loc[index2, 'longitude']) ** 2 +
                                  (data_office.loc[index1, 'latitude'] - data_office.loc[index2, 'latitude']) ** 2) *
                       111.319 <= radius]
+
         print('finis compute proximities between siret')
         data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret_prox'])
         data_siret_prox = data_siret_prox.groupby(['siret'])['siret_prox'].apply(list)
         data_siret_prox = data_siret_prox.reset_index()
+        data_siret_prox.to_csv(self.path_data_in + "/da")
         data_office = data_office.merge(data_siret_prox, on=['siret'], how='left')
         data_office['siret_prox'].fillna("", inplace=True)
 
