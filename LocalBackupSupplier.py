@@ -81,7 +81,7 @@ class LocalBackupSuppliers:
         data_office = data_office.merge(data_turnover, on=['code'])  # perte de 7727 entreprises
         del data_turnover
         print('merge data')
-        data_office = data_office.sample(1000)
+        # data_office = data_office.sample(1000)
         data_office[['longitude', 'latitude']] = data_office['coordinates'].str.replace(
             '(', '', regex=True).str.replace(')', '', regex=True).str.split(",", 1, expand=True)
         data_office['longitude'] = data_office['longitude'].astype('float')
