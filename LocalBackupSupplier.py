@@ -76,7 +76,6 @@ class LocalBackupSuppliers:
         print('load data_turnover')
         data_turnover = data_turnover[['code', 'dest', 'qte']]
         data_turnover = data_turnover.dropna().drop_duplicates()
-
         data_office = self.load_data()
         print('load data_office')
         data_office = data_office.merge(data_turnover, on=['code'])  # perte de 7727 entreprises
@@ -100,16 +99,12 @@ class LocalBackupSuppliers:
         data_siret_prox.to_csv(self.path_data_in + "data_siret_prox_" + str(radius) + "km.csv", sep=";", index=False)
         data_office = data_office.merge(data_siret_prox, on=['siret'], how='left')
         data_office['siret_prox'].fillna("", inplace=True)
-
         data_office['cpf4'] = data_office['code'].apply(lambda row: self.code_to_cpf4(row))
-
         data_office = self.same_company_for_supplier(data_office)
         print('finish compute same company for supplier')
         data_office = self.nb_local_backup_supplier(data_office)
-
         data_office['LocalBackupSuppliers'] = data_office.apply(lambda row: row['Card_lbs'] / row['denominateur'],
                                                                 axis=1)
-
         data_final = self.save_data(data_office)
         print('finish to compute Local Backup Supplier')
         return data_final
