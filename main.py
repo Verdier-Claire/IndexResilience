@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 from AgilityCompanyProduction import AgilityCompanyProduct
 from LocalBackupSupplier import LocalBackupSuppliers
 from VersatilityCompanyWorkforce import Versatility
-
+from ResilienceFlows import ResilienceSupplyFlows
 Versa = Versatility()
 lbs = LocalBackupSuppliers()
 acp = AgilityCompanyProduct()
+Resflow = ResilienceSupplyFlows()
 
 
 def main(compute=False):
@@ -29,4 +30,6 @@ def main(compute=False):
 
 
 if __name__ == '__main__':
-    main(compute=False)  # if compute is True, compute three index, else, read index csv
+    data_resilience = Resflow.index_resilience()
+    print(data_resilience.describe())
+    # main(compute=False)  # if compute is True, compute three index, else, read index csv
