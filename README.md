@@ -43,11 +43,11 @@ Soit $\lambda_{\alpha}$ la consommation intermédiaire pour l'activité $\alpha$
 Soit $l_p$ le poids du produit p dans l'activité $\alpha$. <br />
 Soit $r_p$ la résilience du produit p. <br />
 La résilience du produit p, notée $r_p$ est définie de la manière suivante : 
-$$\text{Resilience} = - \alpha \text{log} \alpha$$
+$$r_p = - \alpha \text{log} \alpha$$
 Où : <br />
-$$\alpha = \frac{\text{Efficiency}}{\text{Efficiency}+ \text{Redondance} }$$
+$$\alpha = \frac{\text{Productivité}}{\text{Productivité} + \text{Redondance} }$$
 $$\text{Redondance} = - \sum_{i,j} \frac{T_{ij}}{T_{..}} \text{log} \frac{T^2_{ij}}{T_{i.}T_{.j}}$$
-$$\text{Efficiency} = \sum_{i,j} \frac{T_{ij}}{T_{..}} \text{log} \frac{T_{ij}T_{..}}{T_{i.}T_{.j}}$$
+$$\text{Productivité} = \sum_{i,j} \frac{T_{ij}}{T_{..}} \text{log} \frac{T_{ij}T_{..}}{T_{i.}T_{.j}}$$
 
 On peut ainsi définir l'indice de la résilience des flux d'approvisionnements de la façon suivante : <br />
 $$RSF(e) = \sum_{\alpha \in A^e} \lambda_{\alpha} \sum_{p \in P_{\alpha}} l_p r_p$$
