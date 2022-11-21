@@ -32,4 +32,16 @@ def main(compute=False):
 if __name__ == '__main__':
     data_resilience = Resflow.index_resilience()
     print(data_resilience.describe())
+
+    # data_c = pd.read_csv(os.getcwd() + "/data/data_out/ResilienceSupplyFlows.csv", sep=";")
+    # print(data_c.query("siret == '34973428500191'")['resilience_flow'])
+    # print(data_c.describe())
+    # data_a = pd.read_csv("/Users/cverdier/Documents/ModeleEvolutionEntreprise/IndexResilienceArnault/Resilience_Index/"
+    #                       "output/computed_RI_for_officies.csv", sep=',')
+    # data_a.rename(columns={'naf': 'code_naf'}, inplace=True)
+    # data = data_c.merge(data_a, on=['code_naf', 'siret'], how='inner')
+    # data.drop_duplicates('code_naf', inplace=True)
+    # print(sum(data['resilience_flow']))
+    # print(sum(data['F_3_3']))
+
     # main(compute=False)  # if compute is True, compute three index, else, read index csv
