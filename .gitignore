@@ -9,3 +9,7 @@
 /data/data_out/indexResilient.csv
 /data/data_out/entreprise_ri_raw.csv
 /.idea
+/data/data_in/data-coordinates.csv
+/data/data_in/*
+/data
+.DS_Store
