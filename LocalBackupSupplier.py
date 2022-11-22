@@ -1,5 +1,5 @@
 import os
-
+import geopy.distance
 import pandas as pd
 import numpy as np
 import itertools
@@ -11,16 +11,20 @@ class LocalBackupSuppliers:
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
 
-    def load_turnover_data(self):
-        data = pd.read_csv(self.path_data_in + "turnover_with_other_data.csv", sep=";",
-                           dtype={"cpf4_x": str, "code_cpf_importation": str, 'departement_importation': str})
-        data.rename(columns={'code_cpf_importation': 'Code_CPF4', 'departement_importation': 'Code_depart'},
-                    inplace=True)
+    def load_data(self):
+        data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',')
+        data['coordinates'].fillna(data['coordinates-2'], inplace=True)
+        data.drop(['coordinates-2'], inplace=True, axis=1)
+        data['code_cpf4'] = data['code'].apply(lambda row: str(row[:5]))
+
+        data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';')
+        data = data.merge(data_suppliers, on='code_cpf4', how='left')
+        del data_suppliers
+        data.dropna(inplace=True)
+        data.drop_duplicates(inplace=True)
         return data
 
-    def load_data(self):
-        data = pd.read_csv(self.path_data_in + "offices-france.csv", sep=',')
-        return data
+
 
     def same_company_for_supplier(self, data):
         data_activity = data.copy()
@@ -71,35 +75,44 @@ class LocalBackupSuppliers:
         return ret
 
     def main_lbs(self, radius=100):
-
-        data_turnover = self.load_turnover_data()
-        print('load data_turnover')
-        data_turnover = data_turnover[['code', 'dest', 'qte']]
-        data_turnover = data_turnover.dropna().drop_duplicates()
-
         data_office = self.load_data()
-        print('load data_office')
-        data_office = data_office.merge(data_turnover, on=['code'])  # perte de 7727 entreprises
-        del data_turnover
-        print('merge data')
-        # data_office = data_office.sample(1000)
-        data_office[['longitude', 'latitude']] = data_office['coordinates'].str.replace(
-            '(', '', regex=True).str.replace(')', '', regex=True).str.split(",", 1, expand=True)
-        data_office['longitude'] = data_office['longitude'].astype('float')
-        data_office['latitude'] = data_office['latitude'].astype('float')
-        siret_prox = [[data_office.loc[index1, 'siret'], data_office.loc[index2, 'siret']] for index1, index2
-                      in itertools.combinations(data_office.index, 2)
-                      if np.sqrt((data_office.loc[index1, 'longitude'] - data_office.loc[index2, 'longitude']) ** 2 +
-                                 (data_office.loc[index1, 'latitude'] - data_office.loc[index2, 'latitude']) ** 2) *
-                      111.319 <= radius]
+        print('load data')
+        data_office.sort_values('code', ascending=True, inplace=True)
+        data_office = data_office.sample(5000, random_state=3)
+
+        data_office['coordinates'] = data_office['coordinates'].apply(eval)
+        data_office['dest'] = data_office['dest'].apply(eval)
+        data_office['qte'] = data_office['qte'].apply(eval)
+
+        siret_prox = [self.weight_index(data_office, index1, index2) for index1, index2 in
+                      itertools.permutations(data_office.index, 2)]
 
         print('finis compute proximities between siret')
-        data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret_prox'])
-        data_siret_prox = data_siret_prox.groupby(['siret'])['siret_prox'].apply(list)
-        data_siret_prox = data_siret_prox.reset_index()
-        data_siret_prox.to_csv(self.path_data_in + "data_siret_prox_" + str(radius) + "km.csv", sep=";", index=False)
-        data_office = data_office.merge(data_siret_prox, on=['siret'], how='left')
-        data_office['siret_prox'].fillna("", inplace=True)
+
+        data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'weight', 'dist', 'supplier', 'same_activite',
+                                                            'code_supplier'])
+
+        data_supplier = data_siret_prox.query("supplier == 'True'")
+        data_supplier['dist'] = data_supplier['dist', 'weight'].apply(lambda row: row['dist'] * row['weight'], axis=1)
+        data_supplier = data_supplier.groupby(['siret', 'code_supplier'])['dist'].sum().reset_index()
+
+        data_rival = data_siret_prox.query("same_activite == 'True'")
+        del data_siret_prox
+        data_rival = [[data_rival.loc[index, 'siret'], act, data_rival.loc[index, 'dist']] for index in data_rival.index
+                      for act in data_rival.loc[index, 'code_supplier']]
+        data_rival = pd.DataFrame(data_rival, columns=['siret', 'code_supplier', 'dist_rival']).groupby(['siret',
+                                                                                                   'code_supplier'
+                                                                                                   ])['dist_rival'].\
+            sum().reset_index()
+        data_rival = data_supplier.merge(data_rival, on=['siret', 'code_supplier'], how='left')
+        data_rival['dist_rival'] = data_rival['dist_rival'].fillna(1)
+        data_rival['dist'] = data_rival['dist'].fillna(0)
+        del data_supplier
+        data_rival['dist'] = data_rival.apply(lambda row: row['dist']/row['dist_rival'], axis=1)
+        data_rival = data_rival.groupby(['siret'])['dist'].sum().reset_index()
+        # data_siret_prox.to_csv(self.path_data_in + "data_siret_prox_" + str(radius) + "km.csv", sep=";", index=False)
+        data_office = data_office.merge(data_supplier, on=['siret'], how='left')
+        data_office = data_office.merge(data_rival, on=['siret'], how='left')
 
         data_office['cpf4'] = data_office['code'].apply(lambda row: self.code_to_cpf4(row))
 
@@ -113,6 +126,33 @@ class LocalBackupSuppliers:
         data_final = self.save_data(data_office)
         print('finish to compute Local Backup Supplier')
         return data_final
+
+    def weight_index(self, data, index1, index2):
+        if data.loc[index2, 'code'] in data.loc[index1, 'dest']:
+            siret = data.loc[index1, 'siret']
+            weight = data.loc[index1, 'qte'][data.loc[index1, 'dest'].index(data.loc[index2, 'code'])]
+
+            dist = geopy.distance.geodesic(data.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
+            if dist == 0:
+                dist = 1
+            dist = 1/dist
+            supplier = True
+            same_act = data.loc[index1, 'code'] == data.loc[index2, 'code']
+            list_same_supplier = data.loc[index2, 'code']
+            return [siret, weight, dist, supplier, same_act, list_same_supplier]
+        elif data.loc[index1, 'code'] == data.loc[index2, 'code'] or (list(set(data.loc[index1, 'dest']) &
+                                                                           set(data.loc[index2, 'dest'])) != []):
+            siret = data.loc[index1, 'siret']
+            weight = 1
+            dist = geopy.distance.geodesic(data.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
+            if dist == 0:
+                dist = 1
+            dist = 1/dist
+            supplier = False
+            same_act = True
+            list_same_supplier = list(set(data.loc[index1, 'dest']) & set(data.loc[index2, 'dest']))
+            return [siret, weight, dist, supplier, same_act, list_same_supplier]
+
 
     def save_data(self, data):
         data_final = data[['siret', 'code', 'LocalBackupSuppliers']]

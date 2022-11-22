@@ -32,4 +32,4 @@ def main(compute=False):
 
 
 if __name__ == '__main__':
-    main(compute=False)  # compute is True if we want to compute index
+    main(compute=True)  # compute is True if we want to compute index
