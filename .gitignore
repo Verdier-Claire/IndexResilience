@@ -2,4 +2,4 @@ data/*
 *csv
 *txt
 .idea/*
-.idea*
+.idea
