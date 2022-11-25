@@ -41,10 +41,7 @@ class LocalBackupSuppliers:
         data_office = self.preprocessing(data_office)
         print('load data')
 
-        siret_prox = self.parallelize_dataframe(data_office)
-
-        # siret_prox = [self.weight_index(data_office, index1, index2) for index1, index2 in
-        #               itertools.permutations(data_office.index, 2)]
+        data_siret_prox = self.parallelize_dataframe(data_office)
 
         print('finis compute proximities between siret')
 
@@ -74,26 +71,61 @@ class LocalBackupSuppliers:
         print('finish to compute Local Backup Supplier')
         return data_final
 
-    def weight_index(self, data_cut, index1, data, index2):
-        siret = data_cut.loc[index1, 'siret']
-        dist = geopy.distance.geodesic(data_cut.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
+    def weight_index(self, data_split, index1, data,  index2):
+        # TODO fonction à vérifier
+        """
+        compute distance between two company.
+        :param data_split:
+        :param index1:.
+        :param index2:
+        :return: distance between two company, if one is a supplier of the other, if they are rival
+        """
+
+        # initiate values
+        siret1, siret2 = data_split.loc[index1, 'siret'], data.loc[index2, 'siret']
+        weight, supplier, same_act, list_same_supplier = 0, False, False, []
+        weight2, supplier2, same_act2, list_same_supplier2 = 0, False, False, []
+
+        # compute distance between company 1 and company 2
+        dist = geopy.distance.geodesic(data_split.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
+
         if dist < 1:
             dist = 1
         dist = 1 / dist
-        if data.loc[index2, 'code_cpf4'] in data.loc[index1, 'dest']:
-            weight = data_cut.loc[index1, 'qte'][data_cut.loc[index1, 'dest'].index(data_cut.loc[index2, 'code'])]
+
+        # part of if company 2 is a supplier of company 1
+        if data.loc[index2, 'code_cpf4'] in data_split.loc[index1, 'dest']:
+            weight = data_split.loc[index1, 'qte'][data_split.loc[index1, 'dest'].index(data.loc[index2, 'code_cpf4'])]
             supplier = True
-            same_act = data_cut.loc[index1, 'code'] == data_cut.loc[index2, 'code']
-            list_same_supplier = data_cut.loc[index2, 'code']
-            return [siret, weight, dist, supplier, same_act, list_same_supplier]
-        elif data_cut.loc[index1, 'code'] == data_cut.loc[index2, 'code'] or (list(set(data_cut.loc[index1, 'dest']) &
-                                                                                   set(data_cut.loc[index2, 'dest'])) != []):
+            same_act = data_split.loc[index1, 'code'] == data.loc[index2, 'code']
+            list_same_supplier = data.loc[index2, 'code_cpf4']
+
+        # part if company 1 and company 2 are rival (have the same suppliers)
+        elif data_split.loc[index1, 'code'] == data.loc[index2, 'code'] or (list(set(data_split.loc[index1, 'dest']) &
+                                                                                       set(data.loc[index2, 'dest'])) != []):
             weight = 1
-            dist = geopy.distance.geodesic(data_cut.loc[index1, 'coordinates'], data_cut.loc[index2, 'coordinates']).km
             supplier = False
             same_act = True
-            list_same_supplier = list(set(data_cut.loc[index1, 'dest']) & set(data_cut.loc[index2, 'dest']))
-            return [siret, weight, dist, supplier, same_act, list_same_supplier]
+            list_same_supplier = list(set(data_split.loc[index1, 'dest']) & set(data.loc[index2, 'dest']))
+
+        # look if company 1 is a supplier of company 2
+        if data_split.loc[index1, 'code_cpf4'] in data.loc[index2, 'dest']:
+            weight2 = data.loc[index2, 'qte'][data.loc[index2, 'dest'].index(data_split.loc[index1, 'code_cpf4'])]
+            supplier2 = True
+            same_act2 = data_split.loc[index1, 'code'] == data.loc[index2, 'code']
+            list_same_supplier2 = data_split.loc[index1, 'code_cpf4']
+
+        # part if company 1 and company 2 are rival (have the same suppliers)
+        elif data.loc[index2, 'code'] == data_split.loc[index1, 'code'] or (list(set(data.loc[index2, 'dest']) &
+                                                                                 set(data_split.loc[index1, 'dest'])) != []):
+            weight2 = 1
+            supplier2 = False
+            same_act2 = True
+            list_same_supplier2 = list(set(data.loc[index2, 'dest']) & set(data_split.loc[index1, 'dest']))
+
+        ret = [siret1, dist, weight, supplier, same_act, list_same_supplier, siret2, weight2, supplier2, same_act2,
+               list_same_supplier2]
+        return ret
 
 
     def save_data(self, data):
