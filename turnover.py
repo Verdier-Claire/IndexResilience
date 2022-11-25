@@ -5,9 +5,10 @@ import pandas as pd
 
 
 class Turnover:
-    def __init__(self):
+    def __init__(self, year=['2016', '2017', '2018', '2019', '2020']):
         self.data_in = os.getcwd() + "/data/data_in/"
         self.data_out = os.getcwd() + "/data/data_out/"
+        self.list_year = year
 
     def load_data_naf(self, year):
         data_naf = pd.read_excel(self.data_in + "naf_caracteristiques_" + year + ".xlsx", header=11,
@@ -23,6 +24,13 @@ class Turnover:
         data_naf['code_a732'] = data_naf['code_a732'].apply(lambda row: row if row == np.nan else row[:2] +
                                                                                                   '.' + row[2:])
         return data_naf
+
+    def load_data_unitelegale(self):
+        data_unitelegale = pd.read_csv(self.data_in + "StockUniteLegale_utf8.csv", sep=',')
+        data_unitelegale = data_unitelegale.filter(items=['siren', 'annee_CategorieEntreprise',
+                                                          'anneeEffectifsUniteLegale', 'trancheEffectifsUniteLegale',
+                                                          'CategorieEntreprise'])
+        return data_unitelegale
 
     @staticmethod
     def merge_naf_data(data2016, data2017, data2018, data2019, data2020):
@@ -92,34 +100,49 @@ class Turnover:
         return df
 
     def turnover_workforce_data(self, df):
-        df['turnover_2016'] = df.apply(lambda row: self.nan_turnover(row['turnover_2016'],
-                                                                     row['CA_company_2016']), axis=1)
-        df['turnover_2017'] = df.apply(lambda row: self.nan_turnover(row['turnover_2017'],
-                                                                     row['CA_company_2017']), axis=1)
-        df['turnover_2018'] = df.apply(lambda row: self.nan_turnover(row['turnover_2018'],
-                                                                     row['CA_company_2018']), axis=1)
-        df['turnover_2019'] = df.apply(lambda row: self.nan_turnover(row['turnover_2019'],
-                                                                     row['CA_company_2019']), axis=1)
-        df['turnover_2020'] = df.apply(lambda row: self.nan_turnover(row['turnover_2020'],
-                                                                     row['CA_company_2020']), axis=1)
         df['workforce_2016'] = df.apply(lambda row: self.nan_workforce(row['workforce_2016'],
-                                                                       row['workforce_company_2016']), axis=1)
+                                                                       row['workforce_company_2016'],
+                                                                       row['turnover_2016'],
+                                                                       row['CA_company_2016'],
+                                                                       row['CA_pers_2016']), axis=1)
         df['workforce_2017'] = df.apply(lambda row: self.nan_workforce(row['workforce_2017'],
-                                                                       row['workforce_company_2017']), axis=1)
+                                                                       row['workforce_company_2017'],
+                                                                       row['turnover_2017'],
+                                                                       row['CA_company_2017'],
+                                                                       row['CA_pers_2017']), axis=1)
         df['workforce_2018'] = df.apply(lambda row: self.nan_workforce(row['workforce_2018'],
-                                                                       row['workforce_company_2018']), axis=1)
+                                                                       row['workforce_company_2018'],
+                                                                       row['turnover_2018'],
+                                                                       row['CA_company_2018'],
+                                                                       row['CA_pers_2018']), axis=1)
         df['workforce_2019'] = df.apply(lambda row: self.nan_workforce(row['workforce_2019'],
-                                                                       row['workforce_company_2019']), axis=1)
+                                                                       row['workforce_company_2019'],
+                                                                       row['turnover_2018'],
+                                                                       row['CA_company_2019'],
+                                                                       row['CA_pers_2019']), axis=1)
         df['workforce_2020'] = df.apply(lambda row: self.nan_workforce(row['workforce_2020'],
-                                                                       row['workforce_company_2020']), axis=1)
+                                                                       row['workforce_company_2020'],
+                                                                       row['turnover_2020'],
+                                                                       row['CA_company_2020'],
+                                                                       row['CA_pers_2020']), axis=1)
         return df
 
     @staticmethod
-    def nan_workforce(workforce, mean_workforce):
-        ret = workforce
-        if ret == np.nan:
-            ret = mean_workforce
-        return ret
+    def nan_workforce(workforce, mean_workforce, turnover, mean_turnover, turnover_by_people):
+        if (workforce == np.nan) & (turnover == np.nan):
+            wf = mean_workforce
+            tn = mean_turnover
+        elif (workforce == np.nan) and (turnover != np.nan):
+            wf = turnover / turnover_by_people
+            tn = turnover
+        elif (workforce != np.nan) and (turnover == np.nan):
+            wf = workforce
+            tn = workforce * turnover_by_people
+        else:
+            wf = workforce
+            tn = turnover
+
+        return [wf, tn]
 
     @staticmethod
     def nan_turnover(turnover, mean_turnover):
@@ -128,29 +151,46 @@ class Turnover:
             ret = mean_turnover
         return ret
 
+    def main_turnover(self):
+        data_naf = pd.DataFrame([], columns=['code_a732'])
+        for year in self.list_year:
+            if year == self.list_year[0]:
+                data_naf = self.load_data_naf(year)
+            else:
+                data_y = self.load_data_naf(year)
+                data_naf = data_naf.merge(data_y, on=['code_a732'], how='outer')
+                del data_y
 
+        # compute mean turnover for one person by code naf
+        data_naf = self.naf_turnover_by_pers(data_naf)
+        # compute mean turnover for a company by code naf
+        data_naf = self.naf_turnover_by_company(data_naf)
+        # compute mean workforce for a company by code naf
+        data_naf = self.workforce_by_company(data_naf)
 
+        data_turnover = self.load_data()
+        data_naf = data_naf.merge(data_turnover, on='code_a732', how='inner')
+
+        data_naf = self.turnover_workforce_data(data_naf)
+
+        data_naf = data_naf.filter(items=['Siren', 'siret', 'turnover_2016', 'turnover_2017', 'turnover_2018',
+                                          'turnover_2019', 'turnover_2020', 'turnover_2021', 'PRED2020', 'PRED2021',
+                                          'VARIA2020', 'VARIA2021', 'EVO20-21', 'PRED6_2022', 'EVOPRED6_2022',
+                                          'workforce_2016', 'workforce_2017', 'workforce_2018', 'workforce_2019',
+                                          'workforce_2020', 'workforce_2021'])
+
+        return data_naf
 
 
 if __name__ == '__main__':
     turn = Turnover()
-    data_2016 = turn.load_data_naf('2016')
-    data_2017 = turn.load_data_naf('2017')
-    data_2018 = turn.load_data_naf('2018')
-    data_2019 = turn.load_data_naf('2019')
-    data_2020 = turn.load_data_naf('2020')
-    data = turn.merge_naf_data(data_2016, data_2017, data_2018, data_2019, data_2020)
-    del data_2016, data_2017, data_2018, data_2019, data_2020
+    data = turn.main_turnover()
 
-    data = turn.naf_turnover_by_pers(data)
-    data = turn.naf_turnover_by_company(data)
-    data = turn.workforce_by_company(data)
 
-    data_turnover = turn.load_data()
 
-    data = data.merge(data_turnover, on='code_a732', how='inner')
-    data = data.filter(items=['Siren', 'siret', 'turnover_2016', 'turnover_2017', 'turnover_2018', 'turnover_2019',
-                              'turnover_2020', 'turnover_2021', 'PRED2020', 'PRED2021', 'VARIA2020', 'VARIA2021',
-                              'EVO20-21', 'PRED6_2022', 'EVOPRED6_2022', 'workforce_2016', 'workforce_2017',
-                              'workforce_2018', 'workforce_2019', 'workforce_2020', 'workforce_2021'])
+
+
+
+
+
 
