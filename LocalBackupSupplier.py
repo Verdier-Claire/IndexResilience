@@ -10,6 +10,8 @@ class LocalBackupSuppliers:
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
+        self.num_core = multiprocessing.cpu_count() - 1
+
 
     def load_data(self):
         data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',')
