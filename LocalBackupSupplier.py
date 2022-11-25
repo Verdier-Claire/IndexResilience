@@ -3,7 +3,7 @@ import geopy.distance
 import pandas as pd
 import numpy as np
 import itertools
-
+import multiprocessing
 
 class LocalBackupSuppliers:
     def __init__(self):
@@ -22,6 +22,8 @@ class LocalBackupSuppliers:
         del data_suppliers
         data.dropna(inplace=True)
         data.drop_duplicates(inplace=True)
+        data = data.sample(500, random_state=3)
+        data.reset_index(inplace=True, drop=True)
         return data
 
     def preprocessing(self, data):
@@ -32,14 +34,15 @@ class LocalBackupSuppliers:
 
 
     def main_lbs(self):
+        print("begin compute lbs")
         data_office = self.load_data()
         data_office = self.preprocessing(data_office)
         print('load data')
-        # data_office.sort_values('code', ascending=True, inplace=True)
-        data_office = data_office.sample(5000, random_state=3)
 
-        siret_prox = [self.weight_index(data_office, index1, index2) for index1, index2 in
-                      itertools.permutations(data_office.index, 2)]
+        siret_prox = self.parallelize_dataframe(data_office)
+
+        # siret_prox = [self.weight_index(data_office, index1, index2) for index1, index2 in
+        #               itertools.permutations(data_office.index, 2)]
 
         print('finis compute proximities between siret')
 
@@ -69,25 +72,25 @@ class LocalBackupSuppliers:
         print('finish to compute Local Backup Supplier')
         return data_final
 
-    def weight_index(self, data, index1, index2):
-        siret = data.loc[index1, 'siret']
-        dist = geopy.distance.geodesic(data.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
+    def weight_index(self, data_cut, index1, data, index2):
+        siret = data_cut.loc[index1, 'siret']
+        dist = geopy.distance.geodesic(data_cut.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
         if dist < 1:
             dist = 1
         dist = 1 / dist
         if data.loc[index2, 'code_cpf4'] in data.loc[index1, 'dest']:
-            weight = data.loc[index1, 'qte'][data.loc[index1, 'dest'].index(data.loc[index2, 'code'])]
+            weight = data_cut.loc[index1, 'qte'][data_cut.loc[index1, 'dest'].index(data_cut.loc[index2, 'code'])]
             supplier = True
-            same_act = data.loc[index1, 'code'] == data.loc[index2, 'code']
-            list_same_supplier = data.loc[index2, 'code']
+            same_act = data_cut.loc[index1, 'code'] == data_cut.loc[index2, 'code']
+            list_same_supplier = data_cut.loc[index2, 'code']
             return [siret, weight, dist, supplier, same_act, list_same_supplier]
-        elif data.loc[index1, 'code'] == data.loc[index2, 'code'] or (list(set(data.loc[index1, 'dest']) &
-                                                                           set(data.loc[index2, 'dest'])) != []):
+        elif data_cut.loc[index1, 'code'] == data_cut.loc[index2, 'code'] or (list(set(data_cut.loc[index1, 'dest']) &
+                                                                                   set(data_cut.loc[index2, 'dest'])) != []):
             weight = 1
-            dist = geopy.distance.geodesic(data.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
+            dist = geopy.distance.geodesic(data_cut.loc[index1, 'coordinates'], data_cut.loc[index2, 'coordinates']).km
             supplier = False
             same_act = True
-            list_same_supplier = list(set(data.loc[index1, 'dest']) & set(data.loc[index2, 'dest']))
+            list_same_supplier = list(set(data_cut.loc[index1, 'dest']) & set(data_cut.loc[index2, 'dest']))
             return [siret, weight, dist, supplier, same_act, list_same_supplier]
 
 
@@ -95,3 +98,20 @@ class LocalBackupSuppliers:
         data_final = data[['siret', 'code', 'LocalBackupSuppliers']]
         # data_final.to_csv(self.path_data_out + "LocalBackupSupplier.csv", sep=';', index=False)
         return data_final
+
+    def parallelize_dataframe(self, df):
+        num_cores = multiprocessing.cpu_count() - 1  # leave one free to not freeze machine
+        num_partitions = num_cores  # number of partitions to split dataframe
+        df_split = np.array_split(df, num_partitions)
+        pool = multiprocessing.Pool(num_cores)
+        test = self
+        df_pool = pd.concat(pool.map(self.weight_parallele, df_split, df))
+        pool.close()
+        pool.join()
+        return df_pool
+
+    def weight_parallele(self, df_split, df):
+        siret_prox = [self.weight_index(df_split, index1, df,  index2) for index1, index2 in
+                      zip(df_split.index, df.index)]
+        return siret_prox
+
