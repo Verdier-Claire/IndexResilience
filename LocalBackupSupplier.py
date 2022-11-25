@@ -12,7 +12,6 @@ class LocalBackupSuppliers:
         self.path_data_out = os.getcwd() + "/data/data_out/"
         self.num_core = multiprocessing.cpu_count() - 1
 
-
     def load_data(self):
         data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',')
         data['coordinates'].fillna(data['coordinates-2'], inplace=True)
@@ -24,8 +23,8 @@ class LocalBackupSuppliers:
         del data_suppliers
         data.dropna(inplace=True)
         data.drop_duplicates(inplace=True)
-        data = data.sample(500, random_state=3)
-        data.reset_index(inplace=True, drop=True)
+        # data = data.sample(500, random_state=3)
+        # data.reset_index(inplace=True, drop=True)
         return data
 
     def preprocessing(self, data):
