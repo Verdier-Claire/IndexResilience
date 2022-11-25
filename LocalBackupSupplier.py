@@ -100,18 +100,22 @@ class LocalBackupSuppliers:
         return data_final
 
     def parallelize_dataframe(self, df):
-        num_cores = multiprocessing.cpu_count() - 1  # leave one free to not freeze machine
-        num_partitions = num_cores  # number of partitions to split dataframe
-        df_split = np.array_split(df, num_partitions)
-        pool = multiprocessing.Pool(num_cores)
-        test = self
-        df_pool = pd.concat(pool.map(self.weight_parallele, df_split, df))
+        num_partitions = self.num_core  # number of partitions to split dataframe
+        splitted_df = np.array_split(df, num_partitions)
+        args = [[splitted_df[i], df] for i in range(0, num_partitions)]
+        pool = multiprocessing.Pool(self.num_core)
+        df_pool = pool.map(self.weight_parallele, args)
+        df_pool = pd.concat(df_pool)
         pool.close()
         pool.join()
         return df_pool
 
-    def weight_parallele(self, df_split, df):
+    def weight_parallele(self, split_df):
+        df = split_df[1]
+        df_split = split_df[0]
         siret_prox = [self.weight_index(df_split, index1, df,  index2) for index1, index2 in
                       zip(df_split.index, df.index)]
-        return siret_prox
-
+        data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'dist', 'weight', 'supplier', 'same_activite',
+                                                            'code_supplier', 'siret2', 'weight2', 'supplier2',
+                                                            'same_act2', 'code_supplier2'])
+        return data_siret_prox
