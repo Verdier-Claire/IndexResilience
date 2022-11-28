@@ -44,16 +44,21 @@ class Turnover:
 
     def load_data(self):
         data_workforce = pd.read_csv(self.data_in + "workforce_french_companies_2016_2021.csv", sep=',',
-                                     dtype={'Siren': str})
+                                     dtype={'Siren': str, '2016': np.float64, '2017': np.float64, '2018': np.float64,
+                                            '2019': np.float64, '2020': np.float64})
         data_workforce.rename(columns={'2016': 'workforce_2016', '2017': 'workforce_2017',
                                        '2018': 'workforce_2018', '2019': 'workforce_2019',
                                        '2020': 'workforce_2020', '2021': 'workforce_2021'}, inplace=True)
-        dataturnover = pd.read_csv(self.data_in + "turnover_french_companies_2016_2021.csv", sep=',',
-                                   dtype={'Siren': str})
-        dataturnover.rename(columns={'2016': 'turnover_2016', '2017': 'turnover_2017',
-                                     '2018': 'turnover_2018', '2019': 'turnover_2019',
-                                     '2020': 'turnover_2020', '2021': 'turnover_2021'}, inplace=True)
-        dataturnover = dataturnover.merge(data_workforce, on='Siren', how='outer')
+        data_turnover = pd.read_csv(self.data_in + "turnover_french_companies_2016_2021.csv", sep=',',
+                                    dtype={'Siren': str, '2016': np.float64, '2017': np.float64, '2018': np.float64,
+                                           '2019': np.float64, '2020': np.float64, '2021': np.float64,
+                                           'PRED2020': np.float64, 'PRED2021': np.float64, "VARIA2020": np.float64,
+                                           'VARIA2021': np.float64, 'EVO20-21': np.float, 'PRED6_2022': np.float,
+                                           'EVOPRED6_2022': np.float64})
+        data_turnover.rename(columns={'2016': 'turnover_2016', '2017': 'turnover_2017', '2018': 'turnover_2018',
+                                      '2019': 'turnover_2019', '2020': 'turnover_2020', '2021': 'turnover_2021'},
+                             inplace=True)
+        data_turnover = data_turnover.merge(data_workforce, on='Siren', how='outer')
         del data_workforce
 
         data_code = pd.read_csv(self.data_in + "data-coordinates.csv", sep=',', dtype={'siret': str, 'code': str})
@@ -61,10 +66,10 @@ class Turnover:
         data_code['Siren'] = data_code['siret'].apply(lambda row: row[:9])
         data_code.rename(columns={'code': 'code_a732'}, inplace=True)
 
-        dataturnover = dataturnover.merge(data_code, on=['Siren'], how='left')
+        data_turnover = data_turnover.merge(data_code, on=['Siren'], how='left')
         del data_code
 
-        return dataturnover
+        return data_turnover
 
     @staticmethod
     def naf_turnover_by_pers(df):
@@ -100,49 +105,44 @@ class Turnover:
         return df
 
     def turnover_workforce_data(self, df):
-        df['workforce_2016'] = df.apply(lambda row: self.nan_workforce(row['workforce_2016'],
-                                                                       row['workforce_company_2016'],
-                                                                       row['turnover_2016'],
-                                                                       row['CA_company_2016'],
-                                                                       row['CA_pers_2016']), axis=1)
-        df['workforce_2017'] = df.apply(lambda row: self.nan_workforce(row['workforce_2017'],
-                                                                       row['workforce_company_2017'],
-                                                                       row['turnover_2017'],
-                                                                       row['CA_company_2017'],
-                                                                       row['CA_pers_2017']), axis=1)
-        df['workforce_2018'] = df.apply(lambda row: self.nan_workforce(row['workforce_2018'],
-                                                                       row['workforce_company_2018'],
-                                                                       row['turnover_2018'],
-                                                                       row['CA_company_2018'],
-                                                                       row['CA_pers_2018']), axis=1)
-        df['workforce_2019'] = df.apply(lambda row: self.nan_workforce(row['workforce_2019'],
-                                                                       row['workforce_company_2019'],
-                                                                       row['turnover_2018'],
-                                                                       row['CA_company_2019'],
-                                                                       row['CA_pers_2019']), axis=1)
-        df['workforce_2020'] = df.apply(lambda row: self.nan_workforce(row['workforce_2020'],
-                                                                       row['workforce_company_2020'],
-                                                                       row['turnover_2020'],
-                                                                       row['CA_company_2020'],
-                                                                       row['CA_pers_2020']), axis=1)
+        df[['workforce_2016', 'turnover_2016']] = df.apply(lambda row: self.nan_workforce(row['workforce_2016'],
+                                                                                        row['workforce_company_2016'],
+                                                                                        row['turnover_2016'],
+                                                                                        row['CA_company_2016'],
+                                                                                        row['CA_pers_2016']), axis=1)
+        df[['workforce_2017', 'turnover_2017']] = df.apply(lambda row: self.nan_workforce(row['workforce_2017'],
+                                                                                        row['workforce_company_2017'],
+                                                                                        row['turnover_2017'],
+                                                                                        row['CA_company_2017'],
+                                                                                        row['CA_pers_2017']), axis=1)
+        df[['workforce_2018', 'turnover_2018']] = df.apply(lambda row: self.nan_workforce(row['workforce_2018'],
+                                                                                        row['workforce_company_2018'],
+                                                                                        row['turnover_2018'],
+                                                                                        row['CA_company_2018'],
+                                                                                        row['CA_pers_2018']), axis=1)
+        df[['workforce_2019', 'turnover_2019']] = df.apply(lambda row: self.nan_workforce(row['workforce_2019'],
+                                                                                        row['workforce_company_2019'],
+                                                                                        row['turnover_2018'],
+                                                                                        row['CA_company_2019'],
+                                                                                        row['CA_pers_2019']), axis=1)
+        df[['workforce_2020', 'turnover_2020']] = df.apply(lambda row: self.nan_workforce(row['workforce_2020'],
+                                                                                        row['workforce_company_2020'],
+                                                                                        row['turnover_2020'],
+                                                                                        row['CA_company_2020'],
+                                                                                        row['CA_pers_2020']), axis=1)
         return df
 
     @staticmethod
     def nan_workforce(workforce, mean_workforce, turnover, mean_turnover, turnover_by_people):
-        if (workforce == np.nan) & (turnover == np.nan):
-            wf = mean_workforce
-            tn = mean_turnover
-        elif (workforce == np.nan) and (turnover != np.nan):
-            wf = turnover / turnover_by_people
-            tn = turnover
-        elif (workforce != np.nan) and (turnover == np.nan):
-            wf = workforce
-            tn = workforce * turnover_by_people
-        else:
-            wf = workforce
-            tn = turnover
+        if (workforce != workforce) and (turnover != turnover):
+            workforce = mean_workforce
+            turnover = mean_turnover
+        elif (workforce != workforce) and (turnover == turnover):
+            workforce = turnover / turnover_by_people
+        elif (workforce == workforce) and (turnover != turnover):
+            turnover = workforce * turnover_by_people
 
-        return [wf, tn]
+        return pd.Series([workforce, turnover])
 
     @staticmethod
     def nan_turnover(turnover, mean_turnover):
