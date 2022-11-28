@@ -42,6 +42,8 @@ class LocalBackupSuppliers:
 
         data_siret_prox = self.parallelize_dataframe(data_office)
 
+        data_siret_prox = self.compute_siret_prox(data_siret_prox, data_office)
+
         print('finis compute proximities between siret')
 
         # TODO partie suivante à mettre dans des fonctions (main_lbs trop longue)
@@ -91,7 +93,7 @@ class LocalBackupSuppliers:
         print('finish to compute Local Backup Supplier')
         return data_final
 
-    def weight_index(self, data_split, index1, data,  index2):
+    def weight_index(self, data_split, index1, df, index2):
         # TODO fonction à vérifier
         """
         compute distance between two company.
@@ -102,10 +104,10 @@ class LocalBackupSuppliers:
         """
 
         # initiate values
-        siret1, siret2 = data_split.loc[index1, 'siret'], data.loc[index2, 'siret']
+        siret1, siret2 = data_split.loc[index1, 'siret'], df.loc[index2, 'siret']
 
         # compute distance between company 1 and company 2
-        dist = geopy.distance.geodesic(data_split.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
+        dist = geopy.distance.geodesic(data_split.loc[index1, 'coordinates'], df.loc[index2, 'coordinates']).km
 
         if dist < 1:
             dist = 1
@@ -114,10 +116,10 @@ class LocalBackupSuppliers:
         ret = [siret1, siret2, dist]
         return ret
 
-
     def save_data(self, data):
-        data.rename(columns={'dist': 'LocalBackupSuppliers'})
-        data_final = data[['siret', 'code', 'LocalBackupSuppliers']]
+        data.rename(columns={'dist': 'LocalBackupSuppliers'}, inplace=True)
+        data_final = data[['siret', 'code', 'LocalBackupSuppliers']].copy()
+        del data
         # data_final.to_csv(self.path_data_out + "LocalBackupSupplier.csv", sep=';', index=False)
         return data_final
 
@@ -146,14 +148,21 @@ class LocalBackupSuppliers:
         data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret2',  'dist'])
         data_siret_prox.to_csv(self.path_data_in + "sire_prox_" + str(num_split) + ".csv", sep=';', index=False)
 
-        data_siret_prox = data_siret_prox.merge(df, on='siret', how='left')
-        df.rename(columns={'siret': 'siret2', 'code_cpf4': 'code_cpf4_2', 'code': 'code_2', 'dest': 'dest_2',
-                           'qte': 'qte_2'},
+        return data_siret_prox
+
+    @staticmethod
+    def compute_siret_prox(data_siret_prox, df):
+        df_merge = df.copy()
+        data_siret_prox = data_siret_prox.merge(df_merge, on='siret', how='left')
+        df_merge.rename(columns={'siret': 'siret2', 'code_cpf4': 'code_cpf4_2', 'code': 'code_2', 'dest': 'dest_2',
+                                 'qte': 'qte_2'},
                   inplace=True)
-        data_siret_prox = data_siret_prox.merge(df, on='siret2', how='left')
+        data_siret_prox = data_siret_prox.merge(df_merge, on='siret2', how='left')
+        del df_merge
         data_siret_prox['supplier'] = [True if data_siret_prox.loc[index, 'code_cpf4_2'] in
-                                                    data_siret_prox.loc[index, 'dest'] else False
-                                            for index in data_siret_prox.index]
+                                               data_siret_prox.loc[index, 'dest']
+                                       else False
+                                       for index in data_siret_prox.index]
         data_siret_prox['same_activite'] = [True if (list(set(data_siret_prox.loc[index, 'dest']) &
                                                           set(data_siret_prox.loc[index, 'dest_2'])) != [])
                                             else False
@@ -171,5 +180,4 @@ class LocalBackupSuppliers:
                                       for index in data_siret_prox.index]
 
         data_siret_prox = data_siret_prox[['siret', 'weight', 'dist', 'supplier', 'same_activite', 'code_supplier']]
-
         return data_siret_prox
