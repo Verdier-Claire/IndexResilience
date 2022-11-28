@@ -23,8 +23,8 @@ class LocalBackupSuppliers:
         del data_suppliers
         data.dropna(inplace=True)
         data.drop_duplicates(inplace=True)
-        # data = data.sample(500, random_state=3)
-        # data.reset_index(inplace=True, drop=True)
+        data = data.sample(500, random_state=3)
+        data.reset_index(inplace=True, drop=True)
         return data
 
     def preprocessing(self, data):
@@ -106,8 +106,6 @@ class LocalBackupSuppliers:
 
         # initiate values
         siret1, siret2 = data_split.loc[index1, 'siret'], data.loc[index2, 'siret']
-        weight, supplier, same_act, list_same_supplier = 0, False, False, []
-        # weight2, supplier2, same_act2, list_same_supplier2 = 0, False, False, []
 
         # compute distance between company 1 and company 2
         dist = geopy.distance.geodesic(data_split.loc[index1, 'coordinates'], data.loc[index2, 'coordinates']).km
@@ -116,38 +114,7 @@ class LocalBackupSuppliers:
             dist = 1
         dist = 1 / dist
 
-        # part of if company 2 is a supplier of company 1
-        if data.loc[index2, 'code_cpf4'] in data_split.loc[index1, 'dest']:
-            weight = data_split.loc[index1, 'qte'][data_split.loc[index1, 'dest'].index(data.loc[index2, 'code_cpf4'])]
-            supplier = True
-            same_act = data_split.loc[index1, 'code'] == data.loc[index2, 'code']
-            list_same_supplier = data.loc[index2, 'code_cpf4']
-
-        # part if company 1 and company 2 are rival (have the same suppliers)
-        elif data_split.loc[index1, 'code'] == data.loc[index2, 'code'] or (list(set(data_split.loc[index1, 'dest']) &
-                                                                                       set(data.loc[index2, 'dest'])) != []):
-            weight = 1
-            supplier = False
-            same_act = True
-            list_same_supplier = list(set(data_split.loc[index1, 'dest']) & set(data.loc[index2, 'dest']))
-
-        # look if company 1 is a supplier of company 2
-        # if data_split.loc[index1, 'code_cpf4'] in data.loc[index2, 'dest']:
-        #     weight2 = data.loc[index2, 'qte'][data.loc[index2, 'dest'].index(data_split.loc[index1, 'code_cpf4'])]
-        #     supplier2 = True
-        #     same_act2 = data_split.loc[index1, 'code'] == data.loc[index2, 'code']
-        #     list_same_supplier2 = data_split.loc[index1, 'code_cpf4']
-#
-        # # part if company 1 and company 2 are rival (have the same suppliers)
-        # elif data.loc[index2, 'code'] == data_split.loc[index1, 'code'] or (list(set(data.loc[index2, 'dest']) &
-        #                                                                          set(data_split.loc[index1, 'dest'])) != []):
-        #     weight2 = 1
-        #     supplier2 = False
-        #     same_act2 = True
-        #     list_same_supplier2 = list(set(data.loc[index2, 'dest']) & set(data_split.loc[index1, 'dest']))
-#
-        ret = [siret1, dist, weight, supplier, same_act, list_same_supplier]
-        # , siret2, weight2, supplier2, same_act2, list_same_supplier2
+        ret = [siret1, siret2, dist]
         return ret
 
 
@@ -176,7 +143,32 @@ class LocalBackupSuppliers:
                                                         df_split.loc[index1, 'code'] == df.loc[index2, 'code'] or (
                                                                     list(set(df_split.loc[index1, 'dest']) &
                                                                          set(df.loc[index2, 'dest'])) != []))
-                                                        ]
-        data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'dist', 'weight', 'supplier', 'same_activite',
-                                                            'code_supplier'])
+                      ]
+        data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret2',  'dist'])
+        data_siret_prox = data_siret_prox.merge(df, on='siret', how='left')
+        df.rename(columns={'siret': 'siret2', 'code_cpf4': 'code_cpf4_2', 'code': 'code_2', 'dest': 'dest_2',
+                           'qte': 'qte_2'},
+                  inplace=True)
+        data_siret_prox = data_siret_prox.merge(df, on='siret2', how='left')
+        data_siret_prox['supplier'] = [True if data_siret_prox.loc[index, 'code_cpf4_2'] in
+                                                    data_siret_prox.loc[index, 'dest'] else False
+                                            for index in data_siret_prox.index]
+        data_siret_prox['same_activite'] = [True if (list(set(data_siret_prox.loc[index, 'dest']) &
+                                                          set(data_siret_prox.loc[index, 'dest_2'])) != [])
+                                            else False
+                                            for index in data_siret_prox.index]
+        data_siret_prox['code_supplier'] = [data_siret_prox.loc[index, 'code_cpf4_2']
+                                            if data_siret_prox.loc[index, 'code_cpf4_2']
+                                            in data_siret_prox.loc[index, 'dest']
+                                            else list(set(data_siret_prox.loc[index, 'dest']) &
+                                                      set(data_siret_prox.loc[index, 'dest_2']))
+                                            for index in data_siret_prox.index]
+
+        data_siret_prox['weight'] = [ data_siret_prox.loc[index, 'qte'][data_siret_prox.loc[index, 'dest'].index(data_siret_prox.loc[index, 'code_cpf4_2'])]
+                                      if data_siret_prox.loc[index, 'code_cpf4_2'] in data_siret_prox.loc[index, 'dest']
+                                      else 1
+                                      for index in data_siret_prox.index]
+
+        data_siret_prox = data_siret_prox[['siret', 'weight', 'supplier', 'same_activite', 'code_supplier']]
+
         return data_siret_prox
