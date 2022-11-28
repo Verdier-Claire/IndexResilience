@@ -71,9 +71,6 @@ class LocalBackupSuppliers:
         data_rival2.reset_index(drop=True, inplace=True)
         del data_siret_prox
 
-
-        # ret = self.siret_dist(data_rival2)
-
         ret = [[data_rival2.loc[row, 'siret'], data_rival2.loc[row, 'dist'], act] for row in data_rival2.index
                        for act in data_rival2.loc[row, 'code_supplier']]
         data_rival2 = pd.DataFrame(ret, columns=['siret', 'dist_rival', 'code_supplier'])
@@ -127,7 +124,7 @@ class LocalBackupSuppliers:
     def parallelize_dataframe(self, df):
         num_partitions = self.num_core  # number of partitions to split dataframe
         splitted_df = np.array_split(df, num_partitions)
-        args = [[splitted_df[i], df] for i in range(0, num_partitions)]
+        args = [[splitted_df[i], df, i] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         df_pool = pool.map(self.weight_parallele, args)
         df_pool = pd.concat(df_pool)
@@ -137,7 +134,9 @@ class LocalBackupSuppliers:
 
     def weight_parallele(self, split_df):
         df = split_df[1]
+        num_split = split_df[2]
         df_split = split_df[0]
+
         siret_prox = [self.weight_index(df_split, index1, df,  index2) for index1, index2 in
                       zip(df_split.index, df.index) if (df.loc[index2, 'code_cpf4'] in df_split.loc[index1, 'dest'] or
                                                         df_split.loc[index1, 'code'] == df.loc[index2, 'code'] or (
@@ -145,6 +144,8 @@ class LocalBackupSuppliers:
                                                                          set(df.loc[index2, 'dest'])) != []))
                       ]
         data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret2',  'dist'])
+        data_siret_prox.to_csv(self.path_data_in + "sire_prox_" + str(num_split) + ".csv", sep=';', index=False)
+
         data_siret_prox = data_siret_prox.merge(df, on='siret', how='left')
         df.rename(columns={'siret': 'siret2', 'code_cpf4': 'code_cpf4_2', 'code': 'code_2', 'dest': 'dest_2',
                            'qte': 'qte_2'},
@@ -164,11 +165,11 @@ class LocalBackupSuppliers:
                                                       set(data_siret_prox.loc[index, 'dest_2']))
                                             for index in data_siret_prox.index]
 
-        data_siret_prox['weight'] = [ data_siret_prox.loc[index, 'qte'][data_siret_prox.loc[index, 'dest'].index(data_siret_prox.loc[index, 'code_cpf4_2'])]
+        data_siret_prox['weight'] = [data_siret_prox.loc[index, 'qte'][data_siret_prox.loc[index, 'dest'].index(data_siret_prox.loc[index, 'code_cpf4_2'])]
                                       if data_siret_prox.loc[index, 'code_cpf4_2'] in data_siret_prox.loc[index, 'dest']
                                       else 1
                                       for index in data_siret_prox.index]
 
-        data_siret_prox = data_siret_prox[['siret', 'weight', 'supplier', 'same_activite', 'code_supplier']]
+        data_siret_prox = data_siret_prox[['siret', 'weight', 'dist', 'supplier', 'same_activite', 'code_supplier']]
 
         return data_siret_prox
