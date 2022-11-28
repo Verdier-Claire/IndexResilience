@@ -27,12 +27,12 @@ class LocalBackupSuppliers:
         data.reset_index(inplace=True, drop=True)
         return data
 
-    def preprocessing(self, data):
+    @staticmethod
+    def preprocessing(data):
         data['coordinates'] = data['coordinates'].apply(eval)
         data['dest'] = data['dest'].apply(eval)
         data['qte'] = data['qte'].apply(eval)
         return data
-
 
     def main_lbs(self):
         print("begin compute lbs")
@@ -50,22 +50,12 @@ class LocalBackupSuppliers:
 
         data_siret_prox.to_csv(self.path_data_in + "siret_prox_all.csv", sep=';', index=False)
 
-        # selection columns to concat in one data frame
-        # data_siret_prox2 = data_siret_prox[['siret2', 'weight2', 'dist', 'supplier2', 'same_act2',
-        #                                     'code_supplier2']].copy()
-
-        # data_siret_prox2.rename(columns={'siret2': 'siret', 'weight2': 'weight', 'supplier2': 'supplier',
-        #                                  'same_act2': 'same_activite', 'code_supplier2': 'code_supplier'}, inplace=True)
-        # data_siret_prox = data_siret_prox[['siret', 'weight', 'dist', 'supplier', 'same_activite', 'code_supplier']]
-        # data_siret_prox = pd.concat([data_siret_prox, data_siret_prox2])
-
-        data_siret_prox.to_csv(self.path_data_in + "siret_prox.csv", sep=';', index=False)
-
-        # selection only row between two companys of suppliers
+        # selection only row between two companies of suppliers
+        print('begin data supplier')
         data_supplier = data_siret_prox.query("supplier == True")
         data_supplier['dist'] = data_supplier.apply(lambda row: row['dist'] * row['weight'], axis=1)
         data_supplier = data_supplier.groupby(['siret', 'code_supplier'])['dist'].sum().reset_index()
-
+        print("begin data competitor")
         data_rival1 = data_siret_prox.query("same_activite == True & supplier == True")
         data_rival1 = data_rival1.filter(items=['siret', 'code_supplier', 'dist'])
         data_rival1.rename(columns={'dist': 'dist_rival'}, inplace=True)
@@ -74,17 +64,19 @@ class LocalBackupSuppliers:
         del data_siret_prox
 
         ret = [[data_rival2.loc[row, 'siret'], data_rival2.loc[row, 'dist'], act] for row in data_rival2.index
-                       for act in data_rival2.loc[row, 'code_supplier']]
+               for act in data_rival2.loc[row, 'code_supplier']]
         data_rival2 = pd.DataFrame(ret, columns=['siret', 'dist_rival', 'code_supplier'])
 
         data_rival = pd.concat([data_rival1, data_rival2])
         del data_rival1, data_rival2
 
+        print("sum denominator")
         data_rival = data_rival.groupby(['siret', 'code_supplier'])['dist_rival'].sum().reset_index()
         data_rival = data_supplier.merge(data_rival, on=['siret', 'code_supplier'], how='left')
         data_rival['dist_rival'] = data_rival['dist_rival'].fillna(1)
         data_rival['dist'] = data_rival['dist'].fillna(0)
         del data_supplier
+        print("compute lbs")
         data_rival['dist'] = data_rival.apply(lambda row: row['dist']/row['dist_rival'], axis=1)
         data_rival = data_rival.groupby(['siret'])['dist'].sum().reset_index()
         data_rival = data_office.merge(data_rival, on='siret')
@@ -93,12 +85,13 @@ class LocalBackupSuppliers:
         print('finish to compute Local Backup Supplier')
         return data_final
 
-    def weight_index(self, data_split, index1, df, index2):
-        # TODO fonction à vérifier
+    @staticmethod
+    def weight_index(data_split, index1, df, index2):
         """
         compute distance between two company.
         :param data_split:
         :param index1:.
+        :param df:
         :param index2:
         :return: distance between two company, if one is a supplier of the other, if they are rival
         """
@@ -116,7 +109,8 @@ class LocalBackupSuppliers:
         ret = [siret1, siret2, dist]
         return ret
 
-    def save_data(self, data):
+    @staticmethod
+    def save_data(data):
         data.rename(columns={'dist': 'LocalBackupSuppliers'}, inplace=True)
         data_final = data[['siret', 'code', 'LocalBackupSuppliers']].copy()
         del data
@@ -124,21 +118,23 @@ class LocalBackupSuppliers:
         return data_final
 
     def parallelize_dataframe(self, df):
+        print("begin multiprocessing ")
         num_partitions = self.num_core  # number of partitions to split dataframe
-        splitted_df = np.array_split(df, num_partitions)
+        splitted_df = np.array_split(df, num_partitions)  # split data
         args = [[splitted_df[i], df, i] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         df_pool = pool.map(self.weight_parallele, args)
         df_pool = pd.concat(df_pool)
         pool.close()
         pool.join()
+        print('finish multiprocessing')
         return df_pool
 
     def weight_parallele(self, split_df):
         df = split_df[1]
         num_split = split_df[2]
         df_split = split_df[0]
-
+        # compute dist between two company
         siret_prox = [self.weight_index(df_split, index1, df,  index2) for index1, index2 in
                       zip(df_split.index, df.index) if (df.loc[index2, 'code_cpf4'] in df_split.loc[index1, 'dest'] or
                                                         df_split.loc[index1, 'code'] == df.loc[index2, 'code'] or (
@@ -152,15 +148,16 @@ class LocalBackupSuppliers:
 
     @staticmethod
     def compute_siret_prox(data_siret_prox, df):
+        print("begin compute same activite and same supplier")
         df_merge = df.copy()
         data_siret_prox = data_siret_prox.merge(df_merge, on='siret', how='left')
         df_merge.rename(columns={'siret': 'siret2', 'code_cpf4': 'code_cpf4_2', 'code': 'code_2', 'dest': 'dest_2',
                                  'qte': 'qte_2'},
-                  inplace=True)
+                        inplace=True)
         data_siret_prox = data_siret_prox.merge(df_merge, on='siret2', how='left')
         del df_merge
-        data_siret_prox['supplier'] = [True if data_siret_prox.loc[index, 'code_cpf4_2'] in
-                                               data_siret_prox.loc[index, 'dest']
+        data_siret_prox['supplier'] = [True if data_siret_prox.loc[index, 'code_cpf4_2'] in data_siret_prox.loc[index,
+                                                                                                                'dest']
                                        else False
                                        for index in data_siret_prox.index]
         data_siret_prox['same_activite'] = [True if (list(set(data_siret_prox.loc[index, 'dest']) &
@@ -174,10 +171,13 @@ class LocalBackupSuppliers:
                                                       set(data_siret_prox.loc[index, 'dest_2']))
                                             for index in data_siret_prox.index]
 
-        data_siret_prox['weight'] = [data_siret_prox.loc[index, 'qte'][data_siret_prox.loc[index, 'dest'].index(data_siret_prox.loc[index, 'code_cpf4_2'])]
+        data_siret_prox['weight'] = [data_siret_prox.loc[index, 'qte'][data_siret_prox.loc[index,
+                                                                                           'dest'].index(
+            data_siret_prox.loc[index, 'code_cpf4_2'])]
                                       if data_siret_prox.loc[index, 'code_cpf4_2'] in data_siret_prox.loc[index, 'dest']
                                       else 1
                                       for index in data_siret_prox.index]
 
         data_siret_prox = data_siret_prox[['siret', 'weight', 'dist', 'supplier', 'same_activite', 'code_supplier']]
+        print('finish feature engineering ')
         return data_siret_prox
