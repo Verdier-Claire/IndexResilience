@@ -1,7 +1,5 @@
 import os
-import seaborn as sns
 import pandas as pd
-import matplotlib.pyplot as plt
 from AgilityCompanyProduction import AgilityCompanyProduct
 from LocalBackupSupplier import LocalBackupSuppliers
 from VersatilityCompanyWorkforce import Versatility
