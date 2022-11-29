@@ -10,7 +10,7 @@ class LocalBackupSuppliers:
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
-        self.num_core = multiprocessing.cpu_count() - 1
+        self.num_core = 8  #  multiprocessing.cpu_count() - 10
 
     def load_data(self):
         data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',')
@@ -121,6 +121,12 @@ class LocalBackupSuppliers:
         print("begin multiprocessing ")
         num_partitions = self.num_core  # number of partitions to split dataframe
         splitted_df = np.array_split(df, num_partitions)  # split data
+        # list_df = [df.drop()]
+
+        # args = [[splitted_df[i], df, i] if i == 0
+        #         else [splitted_df[i], df.drop(np.arange(0, splitted_df[i].index[-1]+1, dtype=int), axis=0), i]
+        #         for i in range(0, num_partitions)
+        #         ]
         args = [[splitted_df[i], df, i] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         df_pool = pool.map(self.weight_parallele, args)
@@ -134,9 +140,10 @@ class LocalBackupSuppliers:
         df = split_df[1]
         num_split = split_df[2]
         df_split = split_df[0]
+
         # compute dist between two company
-        siret_prox = [self.weight_index(df_split, index1, df,  index2) for index1, index2 in
-                      zip(df_split.index, df.index) if (df.loc[index2, 'code_cpf4'] in df_split.loc[index1, 'dest'] or
+        siret_prox = [self.weight_index(df_split, index1, df,  index2) for index1 in df_split.index for index2 in
+                      df.index if (df.loc[index2, 'code_cpf4'] in df_split.loc[index1, 'dest'] or
                                                         df_split.loc[index1, 'code'] == df.loc[index2, 'code'] or (
                                                                     list(set(df_split.loc[index1, 'dest']) &
                                                                          set(df.loc[index2, 'dest'])) != []))
