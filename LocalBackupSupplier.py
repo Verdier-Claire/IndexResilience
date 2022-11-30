@@ -14,7 +14,7 @@ class LocalBackupSuppliers:
         self.num_core = multiprocessing.cpu_count() - 10
 
     def load_data(self):
-        data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=';',
+        data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',',
                            converters={'coordinates': ast.literal_eval}, dtype={'code': str})
 
         data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
