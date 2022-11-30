@@ -15,10 +15,11 @@ class LocalBackupSuppliers:
 
     def load_data(self):
         data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=';',
-                           converters={'coordinates': ast.literal_eval})
+                           converters={'coordinates': ast.literal_eval}, dtype={'code': str})
 
         data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
-                                     converters={'dest': ast.literal_eval, 'qte': ast.literal_eval})
+                                     converters={'dest': ast.literal_eval, 'qte': ast.literal_eval},
+                                     dtype={'code': str})
 
         return data, data_suppliers
 
