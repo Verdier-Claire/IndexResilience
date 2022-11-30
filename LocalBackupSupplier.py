@@ -1,3 +1,4 @@
+import ast
 import os
 import geopy.distance
 import pandas as pd
@@ -13,31 +14,25 @@ class LocalBackupSuppliers:
         self.num_core = multiprocessing.cpu_count() - 1
 
     def load_data(self):
-        data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',')
-        data['coordinates'].fillna(data['coordinates-2'], inplace=True)
-        data.drop(['coordinates-2'], inplace=True, axis=1)
-        data['code_cpf4'] = data['code'].apply(lambda row: str(row[:5]))
+        data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=';',
+                           converters={'coordinates': ast.literal_eval})
 
-        data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';')
-        data = data.merge(data_suppliers, on='code_cpf4', how='left')
-        del data_suppliers
-        data.dropna(inplace=True)
-        data.drop_duplicates(inplace=True)
-        data = data.sample(500, random_state=3)
-        data.reset_index(inplace=True, drop=True)
-        return data
+        data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
+                                     converters={'dest': ast.literal_eval, 'qte': ast.literal_eval})
+
+        return data, data_suppliers
 
     @staticmethod
     def preprocessing(data):
-        data['coordinates'] = data['coordinates'].apply(eval)
-        data['dest'] = data['dest'].apply(eval)
-        data['qte'] = data['qte'].apply(eval)
+        data['code_cpf4'] = data['code'].apply(lambda row: str(row[:5]))
         return data
 
     def main_lbs(self):
         print("begin compute lbs")
-        data_office = self.load_data()
+        data_office, data_suppliers = self.load_data()
         data_office = self.preprocessing(data_office)
+        data_office = data_office.merge(data_suppliers, on='code_cpf4', how='left')
+        del data_suppliers
         print('load data')
 
         data_siret_prox = self.parallelize_dataframe(data_office)
