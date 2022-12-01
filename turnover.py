@@ -38,6 +38,20 @@ class Turnover:
         data_naf["CA_HS_" + year] = data_naf["CA_HS_" + year].mul(10**6)
         return data_naf
 
+    def preprocessing_naf(self, df_naf):
+        df_filter = df_naf[['code_a732']].copy()
+        for year in self.list_year:
+            # compute mean turnover for one person by code naf
+            ca_pers = ''.join(['CA_pers_', year])
+            df_filter[ca_pers] = self.naf_turnover_by_pers(df_naf, year)
+            # compute mean turnover for a company by code naf
+            ca_company = ''.join(['CA_company_', str(year)])
+            df_filter[ca_company] = self.naf_turnover_by_company(df_naf, year)
+            # compute mean workforce for a company by code naf
+            workforce_company = ''.join(['workforce_company_', str(year)])
+            df_filter[workforce_company] = self.workforce_by_company(df_naf, year)
+        return df_filter
+
     def load_data_unitelegale(self):
         data_unitelegale = pd.read_csv(self.data_in + "StockUniteLegale_utf8.csv", sep=',')
         data_unitelegale = data_unitelegale.filter(items=['siren', 'annee_CategorieEntreprise',
