@@ -5,10 +5,13 @@ import pandas as pd
 
 
 class Turnover:
-    def __init__(self, year=['2016', '2017', '2018', '2019', '2020']):
+    def __init__(self, year=None):
         self.data_in = os.getcwd() + "/data/data_in/"
         self.data_out = os.getcwd() + "/data/data_out/"
-        self.list_year = year
+        if year is None:
+            self.list_year = ['2016', '2017', '2018', '2019', '2020']
+        else:
+            self.list_year = year
 
     def load_data_naf(self, year):
         data_naf = pd.read_excel(self.data_in + "naf_caracteristiques_" + year + ".xlsx", header=11,
