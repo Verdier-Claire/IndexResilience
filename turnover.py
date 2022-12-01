@@ -110,12 +110,27 @@ class Turnover:
         return data_turnover
 
     @staticmethod
-    def naf_turnover_by_pers(df):
-        df['CA_pers_2016'] = df['CA_HS_2016'].divide(df['Effectifs_2016'].values)
-        df['CA_pers_2017'] = df['CA_HS_2017'].divide(df['Effectifs_2017'].values)
-        df['CA_pers_2018'] = df['CA_HS_2018'].divide(df['Effectifs_2018'].values)
-        df['CA_pers_2019'] = df['CA_HS_2019'].divide(df['Effectifs_2019'].values)
-        df['CA_pers_2020'] = df['CA_HS_2020'].divide(df['Effectifs_2020'].values)
+    def workforce_2016_false_values(data_workforce):
+        data_workforce.loc[data_workforce['workforce_2016'] == 7906000, 'workforce_2016'] = 7906
+        data_workforce.loc[data_workforce['workforce_2016'] == 728000, 'workforce_2016'] = 728
+        data_workforce.loc[data_workforce['workforce_2016'] == 390000, 'workforce_2016'] = 390
+        data_workforce.loc[data_workforce['workforce_2016'] == 317000, 'workforce_2016'] = 317
+        data_workforce.loc[data_workforce['workforce_2016'] == 308000, 'workforce_2016'] = 308
+        data_workforce.loc[data_workforce['workforce_2016'] == 208000, 'workforce_2016'] = 208
+        data_workforce.loc[data_workforce['workforce_2016'] == 205000, 'workforce_2016'] = 205
+        data_workforce.loc[data_workforce['workforce_2016'] == 174000, 'workforce_2016'] = 174
+        data_workforce.loc[data_workforce['workforce_2016'] == 158000, 'workforce_2016'] = 158
+        data_workforce.loc[data_workforce['workforce_2016'] == 119000, 'workforce_2016'] = 119
+        data_workforce.loc[data_workforce['workforce_2016'] == 97000, 'workforce_2016'] = 97
+        data_workforce.loc[data_workforce['workforce_2016'] == 61000, 'workforce_2016'] = 61
+        data_workforce.loc[data_workforce['workforce_2016'] == 60000, 'workforce_2016'] = 60
+        data_workforce.loc[data_workforce['workforce_2016'] == 58000, 'workforce_2016'] = 58
+        data_workforce.loc[data_workforce['workforce_2016'] == 56000, 'workforce_2016'] = 56
+        data_workforce.loc[data_workforce['workforce_2016'] == 54000, 'workforce_2016'] = 54
+        data_workforce.loc[data_workforce['workforce_2016'] == 52000, 'workforce_2016'] = 52
+        data_workforce.loc[data_workforce['workforce_2016'] == 50000, 'workforce_2016'] = 50
+        data_workforce.loc[data_workforce['workforce_2016'] == 47000, 'workforce_2016'] = 47
+        return data_workforce
 
         return df
 
