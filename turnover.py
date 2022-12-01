@@ -72,21 +72,20 @@ class Turnover:
     def load_data(self):
         data_workforce = pd.read_csv(self.data_in + "workforce_french_companies_2016_2021.csv", sep=',',
                                      dtype={'Siren': str, '2016': np.float64, '2017': np.float64, '2018': np.float64,
-                                            '2019': np.float64, '2020': np.float64})
-        data_workforce.rename(columns={'2016': 'workforce_2016', '2017': 'workforce_2017',
-                                       '2018': 'workforce_2018', '2019': 'workforce_2019',
-                                       '2020': 'workforce_2020', '2021': 'workforce_2021'}, inplace=True)
+                                            '2019': np.float64, '2020': np.float64, '2021': np.float64},
+                                     na_values=["nan", "#DIV/0!"])
+        data_workforce = data_workforce.set_index(['Siren']).add_prefix("workforce_").reset_index()
+
         data_turnover = pd.read_csv(self.data_in + "turnover_french_companies_2016_2021.csv", sep=',',
                                     dtype={'Siren': str, '2016': np.float64, '2017': np.float64, '2018': np.float64,
                                            '2019': np.float64, '2020': np.float64, '2021': np.float64,
-                                           'PRED2020': np.float64, 'PRED2021': np.float64, "VARIA2020": np.float64,
-                                           'VARIA2021': np.float64, 'EVO20-21': np.float, 'PRED6_2022': np.float,
-                                           'EVOPRED6_2022': np.float64})
-        data_turnover.rename(columns={'2016': 'turnover_2016', '2017': 'turnover_2017', '2018': 'turnover_2018',
-                                      '2019': 'turnover_2019', '2020': 'turnover_2020', '2021': 'turnover_2021'},
-                             inplace=True)
-        data_turnover = data_turnover.merge(data_workforce, on='Siren', how='outer')
-        del data_workforce
+                                           'PRED2020': np.float64, 'PRED2021': np.float64, 'VARIA2020': np.float64,
+                                           'VARIA2021': np.float64, "EVO20-21": np.float64, "PRED6_2022": np.float64,
+                                           "EVOPRED6_2022": np.float64},
+                                    na_values=["nan", "#DIV/0!"])
+        data_turnover.rename(columns=lambda col_name: f"turnover_{col_name}" if col_name in {"2016", "2017", "2018",
+                                                                                             "2019", "2020", "2021"}
+        else col_name, inplace=True)
 
         data_code = pd.read_csv(self.data_in + "data-coordinates.csv", sep=',', dtype={'siret': str, 'code': str})
         data_code = data_code.filter(items=['siret', 'code'])
