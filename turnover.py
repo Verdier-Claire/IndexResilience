@@ -219,6 +219,7 @@ class Turnover:
         return pd.Series([workforce, turnover])
 
     def main_turnover(self):
+        pd.set_option('display.float_format', '{:.18e}'.format)
         data_naf = pd.DataFrame([], columns=['code_a732'])
         for year in self.list_year:
             if year == self.list_year[0]:
