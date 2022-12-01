@@ -228,36 +228,24 @@ class Turnover:
                 data_naf = data_naf.merge(data_y, on=['code_a732'], how='outer')
                 del data_y
 
-        # compute mean turnover for one person by code naf
-        data_naf = self.naf_turnover_by_pers(data_naf)
-        # compute mean turnover for a company by code naf
-        data_naf = self.naf_turnover_by_company(data_naf)
-        # compute mean workforce for a company by code naf
-        data_naf = self.workforce_by_company(data_naf)
+        data_filter = self.preprocessing_naf(data_naf)
+        del data_naf
+        data_turnover, data_workforce, data_code = self.load_data()
+        data_turnover, data_workforce, data_code = self.preprocessing(data_turnover, data_workforce, data_code)
+        data_turnover = self.merge_data(data_turnover, data_workforce, data_code)
+        del data_workforce, data_code
 
-        data_turnover = self.load_data()
-        data_naf = data_naf.merge(data_turnover, on='code_a732', how='inner')
+        data_filter = data_filter.merge(data_turnover, on='code_a732', how='right')
 
-        data_naf = self.turnover_workforce_data(data_naf)
+        data_filter = self.turnover_workforce_data(data_filter)
 
-        data_naf = data_naf.filter(items=['Siren', 'siret', 'turnover_2016', 'turnover_2017', 'turnover_2018',
-                                          'turnover_2019', 'turnover_2020', 'turnover_2021', 'PRED2020', 'PRED2021',
-                                          'VARIA2020', 'VARIA2021', 'EVO20-21', 'PRED6_2022', 'EVOPRED6_2022',
-                                          'workforce_2016', 'workforce_2017', 'workforce_2018', 'workforce_2019',
-                                          'workforce_2020', 'workforce_2021'])
+        return data_filter
 
-        return data_naf
+# TODO regarder comment sont calculés VARIA, normalement on ne devrait pas en avoir autant
+# TODO d'où vient le turnover 2016 et regarder s'ils ne se sont pas trompés dans les chiffres
+# TODO mettre les pandas en format scientifique
 
 
 if __name__ == '__main__':
     turn = Turnover()
     data = turn.main_turnover()
-
-
-
-
-
-
-
-
-
