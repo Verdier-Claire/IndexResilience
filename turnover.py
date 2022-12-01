@@ -141,27 +141,28 @@ class Turnover:
         return data_turnover, data_workforce
 
     @staticmethod
-    def naf_turnover_by_company(df):
-        df['CA_company_2016'] = df['CA_HS_2016'].divide(df['nb_entreprises_2016'].values)
-        df['CA_company_2017'] = df['CA_HS_2017'].divide(df['nb_entreprises_2017'].values)
-        df['CA_company_2018'] = df['CA_HS_2018'].divide(df['nb_entreprises_2018'].values)
-        df['CA_company_2019'] = df['CA_HS_2019'].divide(df['nb_entreprises_2019'].values)
-        df['CA_company_2020'] = df['CA_HS_2020'].divide(df['nb_entreprises_2020'].values)
-        return df
+    def naf_turnover_by_pers(df, year):
+        ca_pers = ''.join(['CA_pers_', year])
+        ca_hs = ''.join(['CA_HS_', str(year)])
+        workforce = ''.join(['Effectifs_', str(year)])
+        df[ca_pers] = df[ca_hs].divide(df[workforce].values)
+        return df[ca_pers]
 
     @staticmethod
-    def workforce_by_company(df):
-        df['workforce_company_2016'] = df['nb_entreprises_2016'].divide(df['Effectifs_2016'].values)
-        df['workforce_company_2017'] = df['nb_entreprises_2017'].divide(df['Effectifs_2017'].values)
-        df['workforce_company_2018'] = df['nb_entreprises_2018'].divide(df['Effectifs_2018'].values)
-        df['workforce_company_2019'] = df['nb_entreprises_2019'].divide(df['Effectifs_2019'].values)
-        df['workforce_company_2020'] = df['nb_entreprises_2020'].divide(df['Effectifs_2020'].values)
-        df = df.filter(items=['code_a732', 'CA_pers_2016', 'CA_pers_2017', 'CA_pers_2018',  'CA_pers_2019',
-                              'CA_pers_2020', 'CA_company_2016', 'CA_company_2017', 'CA_company_2018',
-                              'CA_company_2019', 'CA_company_2020', 'workforce_company_2016',
-                              'workforce_company_2017', 'workforce_company_2018', 'workforce_company_2019',
-                              'workforce_company_2020'])
-        return df
+    def naf_turnover_by_company(df, year):
+        ca_company = ''.join(['CA_company_', str(year)])
+        ca_hs = ''.join(['CA_HS_', str(year)])
+        nb_company = ''.join(['nb_entreprises_', str(year)])
+        df[ca_company] = df[ca_hs].divide(df[nb_company].values)
+        return df[ca_company]
+
+    @staticmethod
+    def workforce_by_company(df, year):
+        workforce_company = ''.join(['workforce_company_', str(year)])
+        effectifs = ''.join(['Effectifs_', str(year)])
+        nb_company = ''.join(['nb_entreprises_', str(year)])
+        df[workforce_company] = df[effectifs].divide(df[nb_company].values)
+        return df[workforce_company]
 
     def turnover_workforce_data(self, df):
         df[['workforce_2016', 'turnover_2016']] = df.apply(lambda row: self.nan_workforce(row['workforce_2016'],
