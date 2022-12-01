@@ -218,13 +218,6 @@ class Turnover:
 
         return pd.Series([workforce, turnover])
 
-    @staticmethod
-    def nan_turnover(turnover, mean_turnover):
-        ret = turnover
-        if ret == np.nan:
-            ret = mean_turnover
-        return ret
-
     def main_turnover(self):
         data_naf = pd.DataFrame([], columns=['code_a732'])
         for year in self.list_year:
