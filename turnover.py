@@ -88,12 +88,24 @@ class Turnover:
         else col_name, inplace=True)
 
         data_code = pd.read_csv(self.data_in + "data-coordinates.csv", sep=',', dtype={'siret': str, 'code': str})
+
+        return data_turnover, data_workforce, data_code
+
+    def preprocessing(self, data_turnover, data_workforce, data_code):
+        data_workforce = self.workforce_2016_false_values(data_workforce)
+
+        data_turnover, data_workforce = self.siren_len_9(data_turnover, data_workforce)
+
         data_code = data_code.filter(items=['siret', 'code'])
-        data_code['Siren'] = data_code['siret'].apply(lambda row: row[:9])
+        data_code['Siren'] = data_code['siret'].apply(lambda row: str(row[:9]))
         data_code.rename(columns={'code': 'code_a732'}, inplace=True)
 
+        return data_turnover, data_workforce, data_code
+
+    def merge_data(self, data_turnover, data_workforce, data_code):
+        data_turnover = data_turnover.merge(data_workforce, on='Siren', how='outer')
         data_turnover = data_turnover.merge(data_code, on=['Siren'], how='left')
-        del data_code
+        data_turnover.fillna(np.nan, inplace=True)
 
         return data_turnover
 
