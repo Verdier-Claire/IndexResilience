@@ -165,32 +165,46 @@ class Turnover:
         return df[workforce_company]
 
     def turnover_workforce_data(self, df):
-        df[['workforce_2016', 'turnover_2016']] = df.apply(lambda row: self.nan_workforce(row['workforce_2016'],
-                                                                                        row['workforce_company_2016'],
-                                                                                        row['turnover_2016'],
-                                                                                        row['CA_company_2016'],
-                                                                                        row['CA_pers_2016']), axis=1)
-        df[['workforce_2017', 'turnover_2017']] = df.apply(lambda row: self.nan_workforce(row['workforce_2017'],
-                                                                                        row['workforce_company_2017'],
-                                                                                        row['turnover_2017'],
-                                                                                        row['CA_company_2017'],
-                                                                                        row['CA_pers_2017']), axis=1)
-        df[['workforce_2018', 'turnover_2018']] = df.apply(lambda row: self.nan_workforce(row['workforce_2018'],
-                                                                                        row['workforce_company_2018'],
-                                                                                        row['turnover_2018'],
-                                                                                        row['CA_company_2018'],
-                                                                                        row['CA_pers_2018']), axis=1)
-        df[['workforce_2019', 'turnover_2019']] = df.apply(lambda row: self.nan_workforce(row['workforce_2019'],
-                                                                                        row['workforce_company_2019'],
-                                                                                        row['turnover_2018'],
-                                                                                        row['CA_company_2019'],
-                                                                                        row['CA_pers_2019']), axis=1)
-        df[['workforce_2020', 'turnover_2020']] = df.apply(lambda row: self.nan_workforce(row['workforce_2020'],
-                                                                                        row['workforce_company_2020'],
-                                                                                        row['turnover_2020'],
-                                                                                        row['CA_company_2020'],
-                                                                                        row['CA_pers_2020']), axis=1)
-        return df
+        data = df[['Siren', 'siret', 'PRED2020', 'PRED2021', 'VARIA2020', 'VARIA2021', 'EVO20-21', 'PRED6_2022',
+                   'EVOPRED6_2022', 'turnover_2021', 'workforce_2021']].copy()
+
+        data[['workforce_2016', 'turnover_2016']] = df.apply(lambda row: self.nan_workforce(row['workforce_2016'],
+                                                                                            row['workforce_company_'
+                                                                                                '2016'],
+                                                                                            row['turnover_2016'],
+                                                                                            row['CA_company_2016'],
+                                                                                            row['CA_pers_2016']),
+                                                             axis=1)
+
+        data[['workforce_2017', 'turnover_2017']] = df.apply(lambda row: self.nan_workforce(row['workforce_2017'],
+                                                                                            row['workforce_company_'
+                                                                                                '2017'],
+                                                                                            row['turnover_2017'],
+                                                                                            row['CA_company_2017'],
+                                                                                            row['CA_pers_2017']),
+                                                             axis=1)
+        data[['workforce_2018', 'turnover_2018']] = df.apply(lambda row: self.nan_workforce(row['workforce_2018'],
+                                                                                            row['workforce_company_'
+                                                                                                '2018'],
+                                                                                            row['turnover_2018'],
+                                                                                            row['CA_company_2018'],
+                                                                                            row['CA_pers_2018']),
+                                                             axis=1)
+        data[['workforce_2019', 'turnover_2019']] = df.apply(lambda row: self.nan_workforce(row['workforce_2019'],
+                                                                                            row['workforce_company_'
+                                                                                                '2019'],
+                                                                                            row['turnover_2018'],
+                                                                                            row['CA_company_2019'],
+                                                                                            row['CA_pers_2019']),
+                                                             axis=1)
+        data[['workforce_2020', 'turnover_2020']] = df.apply(lambda row: self.nan_workforce(row['workforce_2020'],
+                                                                                            row['workforce_company_'
+                                                                                                '2020'],
+                                                                                            row['turnover_2020'],
+                                                                                            row['CA_company_2020'],
+                                                                                            row['CA_pers_2020']),
+                                                             axis=1)
+        return data
 
     @staticmethod
     def nan_workforce(workforce, mean_workforce, turnover, mean_turnover, turnover_by_people):
