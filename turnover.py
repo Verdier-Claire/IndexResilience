@@ -232,6 +232,7 @@ class Turnover:
         data_filter = self.preprocessing_naf(data_naf)
         del data_naf
         data_turnover, data_workforce, data_code = self.load_data()
+        data_turnover = self.compute_variation(data_turnover)
         data_turnover, data_workforce, data_code = self.preprocessing(data_turnover, data_workforce, data_code)
         data_turnover = self.merge_data(data_turnover, data_workforce, data_code)
         del data_workforce, data_code
@@ -241,6 +242,24 @@ class Turnover:
         data_filter = self.turnover_workforce_data(data_filter)
 
         return data_filter
+
+    def compute_variation(self, df):
+        df['VARIA2020'] = df.apply(lambda row: self.compute_row_varia(row['turnover_2020'], row['PRED2020']), axis=1)
+        df['VARIA2021'] = df.apply(lambda row: self.compute_row_varia(row['turnover_2021'], row['PRED2021']), axis=1)
+        df['EVO20-21'] = df['turnover_2021'] - df['turnover_2020']
+        df['EVOPRED6_2022'] = df.apply(lambda row: - self.compute_row_varia(row['turnover_2021'], row['PRED6_2022']),
+                                       axis=1)
+        return df
+
+    @staticmethod
+    def compute_row_varia(turnover, pred):
+        if turnover == 0 and pred == 0:
+            varia = 0
+        elif turnover == 0 and pred != 0:
+            varia = pred
+        else:
+            varia = (turnover - pred)/turnover
+        return varia
 
 # TODO regarder comment sont calculés VARIA, normalement on ne devrait pas en avoir autant
 # TODO d'où vient le turnover 2016 et regarder s'ils ne se sont pas trompés dans les chiffres
