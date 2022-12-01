@@ -208,12 +208,12 @@ class Turnover:
 
     @staticmethod
     def nan_workforce(workforce, mean_workforce, turnover, mean_turnover, turnover_by_people):
-        if (workforce != workforce) and (turnover != turnover):
+        if (np.isnan(workforce)) and (np.isnan(turnover)):
             workforce = mean_workforce
             turnover = mean_turnover
-        elif (workforce != workforce) and (turnover == turnover):
+        elif (np.isnan(workforce)) and (not np.isnan(turnover)):
             workforce = turnover / turnover_by_people
-        elif (workforce == workforce) and (turnover != turnover):
+        elif (not np.isnan(workforce)) and (np.isnan(turnover)):
             turnover = workforce * turnover_by_people
 
         return pd.Series([workforce, turnover])
