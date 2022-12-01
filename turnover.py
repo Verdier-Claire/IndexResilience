@@ -132,7 +132,13 @@ class Turnover:
         data_workforce.loc[data_workforce['workforce_2016'] == 47000, 'workforce_2016'] = 47
         return data_workforce
 
-        return df
+    @staticmethod
+    def siren_len_9(data_turnover, data_workforce):
+        data_turnover['Siren'] = [("0" * (9 - len(row))) + row if (len(row) < 9) else row
+                                  for row in data_turnover['Siren']]
+        data_workforce['Siren'] = [("0" * (9 - len(row))) + row if len(row) < 9 else row
+                                   for row in data_workforce['Siren']]
+        return data_turnover, data_workforce
 
     @staticmethod
     def naf_turnover_by_company(df):
