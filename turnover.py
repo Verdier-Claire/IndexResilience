@@ -14,6 +14,14 @@ class Turnover:
             self.list_year = year
 
     def load_data_naf(self, year):
+        """
+        if we sum variable nb_entreprises : 4 198 538
+        if we sum variable CH_HS : 3 797 140 900 000
+        if we sum variable Effectifs : 13 852 275
+        :param year:
+        :return:
+        """
+
         data_naf = pd.read_excel(self.data_in + "naf_caracteristiques_" + year + ".xlsx", header=11,
                                  na_values=['S', 'N'])
         data_naf.rename(columns={'NIVEAU NAF': 'niveau_naf', 'Effectifs salariés au 31 décembre': "Effectifs_" + year,
@@ -24,8 +32,10 @@ class Turnover:
         data_naf['code_a732'] = data_naf['code_a732'].str.replace(" ", "")
         data_naf.query("niveau_naf == 'a732'", inplace=True)
         data_naf = data_naf.filter(items=['code_a732', "Effectifs_" + year, 'CA_HS_' + year, 'nb_entreprises_' + year])
-        data_naf['code_a732'] = data_naf['code_a732'].apply(lambda row: row if row == np.nan else row[:2] +
-                                                                                                  '.' + row[2:])
+        data_naf['code_a732'] = data_naf['code_a732'].apply(lambda row: row if row == np.nan else row[:2] + '.' +
+                                                                                                  row[2:])
+
+        data_naf["CA_HS_" + year] = data_naf["CA_HS_" + year].mul(10**6)
         return data_naf
 
     def load_data_unitelegale(self):
