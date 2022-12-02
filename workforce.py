@@ -22,28 +22,6 @@ class Workforce:
             df = pd.read_csv(f"{self.data_in}workforce_pred_2016_2021.csv", sep=';', dtype={'Siren': str})
         return df
 
-    def fit_linear_regression(self, df):
-        print("compute worforce prediction for year 2020")
-        # TODO réfléchir pour améliorer : it's working but we compute everytime in model for each row...
-        start_time = time.time()
-        df['wf_pred_2020'] = df.apply(lambda row: self.sarima_method(row, "2020"),
-                                      axis=1)
-        print("--- %s seconds ---" % (time.time() - start_time))
-
-        print("compute workforce prediction for year 2021")
-        start_time = time.time()
-        df['wf_pred_2021'] = df.apply(lambda row: self.sarima_method(row, "2021"),
-                                      axis=1)
-        print("--- %s seconds ---" % (time.time() - start_time))
-
-        print("compute workforce prediction for year 2022")
-        start_time = time.time()
-        df['wf_pred_2022'] = df.apply(lambda row: self.sarima_method(row, "2022"),
-                                      axis=1)
-        print("--- %s seconds ---" % (time.time() - start_time))
-
-        return df
-
     @staticmethod
     def sarima_method(row, year):
         df_st = pd.DataFrame(row)
