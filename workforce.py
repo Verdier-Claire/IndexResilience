@@ -14,42 +14,47 @@ class Workforce:
         self.data_in = os.getcwd() + "/data/data_in/"
         self.data_out = os.getcwd() + "/data/data_out/"
 
-    def load_data(self, compute=False):
-        if compute:
-            df = pd.read_csv(f"{self.data_in}workforce_french_companies_2016_2021.csv", sep=',', dtype={'Siren': str})
-            df.set_index('Siren', inplace=True)
-        else:
-            df = pd.read_csv(f"{self.data_in}workforce_pred_2016_2021.csv", sep=';', dtype={'Siren': str})
+    def load_data(self):
+        df = pd.read_csv(f"{self.data_in}workforce_french_companies_2016_2021.csv", sep=',', dtype={'Siren': str},
+                         na_values=['#DIV/0!'])  # .add_prefix('workforce_')
+        df.set_index('Siren', inplace=True)
+        df = df.add_prefix('workforce_')
+        df.reset_index(inplace=True)
+        df.dropna(subset=['Siren'], inplace=True)
         return df
 
     @staticmethod
-    def sarima_method(row, year):
-        df_st = pd.DataFrame(row)
-        df_st.reset_index(inplace=True)
-        df_st.columns = ['date', 'workforce']
-        if year =='2020':
-            step = 4
-        elif year == '2021':
-            step = 5
+    def preprocessing(df):
+        df['workforce_PRED_2020'] = df['workforce_PRED_2020'].fillna(df['workforce_2019'])
+        df['workforce_PRED_2021'] = df['workforce_PRED_2021'].fillna(df['workforce_2019'])
+        df['workforce_PRED_2022'] = df['workforce_PRED_2022'].fillna(df['workforce_2019'])
+        return df
+
+    def compute_variation(self, df):
+        df['workforce_VARIA2020'] = df.apply(lambda row: self.compute_row_varia(row['workforce_2020'],
+                                                                                row['workforce_PRED_2020']), axis=1)
+        df['workforce_VARIA2021'] = df.apply(lambda row: self.compute_row_varia(row['workforce_2021'],
+                                                                                row['workforce_PRED_2021']), axis=1)
+        df['workforce_EVO20_21'] = df['workforce_2021'].sub(df['workforce_2020'])
+        df['workforce_EVOPRED_2022'] = df.apply(lambda row: - self.compute_row_varia(row['workforce_2021'],
+                                                                                     row['workforce_PRED_2022']),
+                                                axis=1)
+        return df
+
+    @staticmethod
+    def compute_row_varia(turnover, pred):
+        if turnover == 0 and pred == 0:
+            varia = 0
+        elif turnover == 0 and pred != 0:
+            varia = pred
         else:
-            step = 6
+            varia = (turnover - pred)/turnover
+        return varia
 
-        data_train = df_st[:-step].copy()
-
-        forecaster = ForecasterAutoreg(
-            regressor=RandomForestRegressor(random_state=3),
-            lags=1
-        )
-        forecaster.fit(y=data_train['workforce'])
-        prediction = forecaster.predict(steps=1)
-
-        return prediction.values[0]
-
-    def main_workforce(self, compute=False):
-        data = self.load_data(compute=False)
-        if compute:
-            data = self.fit_linear_regression(data)
-
+    def main_workforce(self):
+        data = self.load_data()
+        data = self.preprocessing(data)
+        data = self.compute_variation(data)
         return data
 
 
