@@ -51,10 +51,14 @@ class Workforce:
             varia = (turnover - pred)/turnover
         return varia
 
+    def save_data(self, df):
+        df.to_csv(f"{self.data_in}/compute_workforce_french_companies_2016_2021.csv", sep=';', index=False)
+
     def main_workforce(self):
         data = self.load_data()
         data = self.preprocessing(data)
         data = self.compute_variation(data)
+        self.save_data(data)
         return data
 
 
