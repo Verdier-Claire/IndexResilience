@@ -7,5 +7,10 @@
 LICENSE,0/3/0398ccd0f49298b10a3d76a47800d2ebecd49859
 K
 AgilityCompanyProduction.py,f/8/f8f9fb73e7b8b198015122d49cf699a2ad1e9c17
-F
-LocalBackupSupplier.py,8/3/837136351f18f97abef1ff2b9e516a58cb006c83
+:
+
+.gitignore,a/5/a5cc2925ca8258af241be7e5b0381edf30266302
+N
+VersatilityCompanyWorkforce.py,9/1/91065e8975c6d1dc32c566f53e2c991ba8efe535
+=
+infogreffe.py,4/d/4da7de5f69448c3ab781a50432b625c0b032376f
