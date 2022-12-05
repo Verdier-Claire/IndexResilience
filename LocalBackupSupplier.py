@@ -12,7 +12,7 @@ class LocalBackupSuppliers:
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
-        self.num_core = multiprocessing.cpu_count() - 5
+        self.num_core = multiprocessing.cpu_count() - 10
 
     def load_data(self):
         data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',',
@@ -40,19 +40,10 @@ class LocalBackupSuppliers:
         data_office, data_suppliers = self.load_data()
         data_office = self.preprocessing(data_office)
         data_office = data_office.merge(data_suppliers, on='code_cpf4', how='left')
-        # data_office = data_office.sample(100, random_state=3)
         del data_suppliers
         print('load data')
 
-        print("begin multiprocessing ")
-        df_turnover = self.load_data_turnover()
-        data_dist = pd.read_csv(self.path_data_out + "local_backup_supplier_2022-12-12.csv", sep=';',
-                                dtype={'siret': str})
-        df_turnover = df_turnover[~df_turnover['siret'].isin(data_dist['siret'].to_list())]
-        df_turnover.sort_values(['siret'], ascending=False, inplace=True)
-        del data_dist
-
-        data_siret_prox = self.weight_parallele(df_turnover, data_office)
+        data_siret_prox = self.parallelize_dataframe(data_office)
 
         data_siret_prox = self.compute_siret_prox(data_siret_prox, data_office)
 
@@ -98,19 +89,28 @@ class LocalBackupSuppliers:
         return data_final
 
     @staticmethod
-    def weight_index(siret1, coord1, siret2, coord2):
+    def weight_index(data_split, index1, df, index2):
+        """
+        compute distance between two company.
+        :param data_split:
+        :param index1:.
+        :param df:
+        :param index2:
+        :return: distance between two company, if one is a supplier of the other, if they are rival
+        """
+
         # initiate values
-        # siret1, siret2 = data_split.loc[index1, 'siret'], df.loc[index2, 'siret']
+        siret1, siret2 = data_split.loc[index1, 'siret'], df.loc[index2, 'siret']
 
         # compute distance between company 1 and company 2
-        dist = geopy.distance.geodesic(coord1, coord2).km
+        dist = geopy.distance.geodesic(data_split.loc[index1, 'coordinates'], df.loc[index2, 'coordinates']).km
 
         if dist < 1:
             dist = 1
         dist = 1 / dist
 
-        # ret = siret1, siret2, dist
-        return int(siret1), int(siret2), dist
+        ret = [siret1, siret2, dist]
+        return ret
 
     @staticmethod
     def save_data(data):
@@ -164,21 +164,4 @@ class LocalBackupSuppliers:
         print('finish feature engineering ')
         return data_siret_prox
 
-    @staticmethod
-    def compute_dist_for_company(row_interest, coord, df, coord2):
-        siret = row_interest.loc['siret']
-        siret2 = df['siret']
-        dest = row_interest.loc['dest']
-        start = time.time()
-        dist = [geopy.distance.geodesic(coord, coord2[i]).km
-                for i in range(0, len(coord2))
-                if (df.at[i, 'code_cpf4'] in dest or list(set(dest) & set(df.at[i, 'dest'])))
-                ]
-        end = time.time()
-        print(f"Time to compute distance for {siret} is {end-start}.")
-        df = pd.DataFrame(siret2, columns=['siret'])
-        df['init_siret'] = siret
-        df['dist'] = dist
-        df.to_csv(f"{os.getcwd()}/data/data_in/data_by_siret_1/siret_{str(siret)}_.csv", sep=';', index=False)
-        return df
 
