@@ -13,7 +13,7 @@
       <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/a" />
       <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/f" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.9 (IndexResilience)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (IndexResilience)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

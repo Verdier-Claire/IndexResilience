@@ -2,8 +2,11 @@ import ast
 import os
 import geopy.distance
 import pandas as pd
-import numpy as np
 import multiprocessing
+from numba import jit, cuda
+import time
+from numba import vectorize, int64, float64
+import numpy as np
 
 
 class LocalBackupSuppliers:
@@ -11,18 +14,23 @@ class LocalBackupSuppliers:
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
-        self.num_core = multiprocessing.cpu_count() - 10
+        self.num_core = multiprocessing.cpu_count() - 5
 
     def load_data(self):
         data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',',
-                           converters={'coordinates': ast.literal_eval}, dtype={'code': str})
+                           converters={'coordinates': ast.literal_eval},
+                           dtype={'siret': str})  # ast.literal_eval
 
         data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
                                      converters={'dest': ast.literal_eval, 'qte': ast.literal_eval},
-                                     dtype={'code': str})
+                                     dtype={'siret': str})
 
         return data, data_suppliers
 
+    def load_data_turnover(self):
+        df_turn = pd.read_csv(self.path_data_in + "offices-france.csv", sep=',',
+                              converters={"coordinates": ast.literal_eval})
+        return df_turn
     @staticmethod
     def preprocessing(data):
         data['code_cpf4'] = data['code'].apply(lambda row: str(row[:5]))
@@ -33,6 +41,7 @@ class LocalBackupSuppliers:
         data_office, data_suppliers = self.load_data()
         data_office = self.preprocessing(data_office)
         data_office = data_office.merge(data_suppliers, on='code_cpf4', how='left')
+        # data_office = data_office.sample(100, random_state=3)
         del data_suppliers
         print('load data')
 
@@ -82,28 +91,19 @@ class LocalBackupSuppliers:
         return data_final
 
     @staticmethod
-    def weight_index(data_split, index1, df, index2):
-        """
-        compute distance between two company.
-        :param data_split:
-        :param index1:.
-        :param df:
-        :param index2:
-        :return: distance between two company, if one is a supplier of the other, if they are rival
-        """
-
+    def weight_index(siret1, coord1, siret2, coord2):
         # initiate values
-        siret1, siret2 = data_split.loc[index1, 'siret'], df.loc[index2, 'siret']
+        # siret1, siret2 = data_split.loc[index1, 'siret'], df.loc[index2, 'siret']
 
         # compute distance between company 1 and company 2
-        dist = geopy.distance.geodesic(data_split.loc[index1, 'coordinates'], df.loc[index2, 'coordinates']).km
+        dist = geopy.distance.geodesic(coord1, coord2).km
 
         if dist < 1:
             dist = 1
         dist = 1 / dist
 
-        ret = [siret1, siret2, dist]
-        return ret
+        # ret = siret1, siret2, dist
+        return int(siret1), int(siret2), dist
 
     @staticmethod
     def save_data(data):
@@ -115,39 +115,28 @@ class LocalBackupSuppliers:
 
     def parallelize_dataframe(self, df):
         print("begin multiprocessing ")
+        df_turnover = self.load_data_turnover()
+        # df_turnover = df_turnover.iloc[:1000, :]
         num_partitions = self.num_core  # number of partitions to split dataframe
-        splitted_df = np.array_split(df, num_partitions)  # split data
-        # list_df = [df.drop()]
+        splitted_df = np.array_split(df_turnover, num_partitions)
 
-        # args = [[splitted_df[i], df, i] if i == 0
-        #         else [splitted_df[i], df.drop(np.arange(0, splitted_df[i].index[-1]+1, dtype=int), axis=0), i]
-        #         for i in range(0, num_partitions)
-        #         ]
         args = [[splitted_df[i], df, i] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
+        start = time.time()
         df_pool = pool.map(self.weight_parallele, args)
-        df_pool = pd.concat(df_pool)
-        pool.close()
-        pool.join()
-        print('finish multiprocessing')
+        end = time.time()
+        print(f"temps du multiprocess : {end - start}")
+
         return df_pool
 
     def weight_parallele(self, split_df):
         df = split_df[1]
-        num_split = split_df[2]
-        df_split = split_df[0]
+        df_turnover = split_df[0]
 
-        # compute dist between two company
-        siret_prox = [self.weight_index(df_split, index1, df,  index2) for index1 in df_split.index for index2 in
-                      df.index if (df.loc[index2, 'code_cpf4'] in df_split.loc[index1, 'dest'] or
-                                                        df_split.loc[index1, 'code'] == df.loc[index2, 'code'] or (
-                                                                    list(set(df_split.loc[index1, 'dest']) &
-                                                                         set(df.loc[index2, 'dest'])) != []))
-                      ]
-        data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret2',  'dist'])
-        data_siret_prox.to_csv(self.path_data_in + "sire_prox_" + str(num_split) + ".csv", sep=';', index=False)
-        print(num_split)
-        return data_siret_prox
+        data = [vectorize(self.compute_dist_for_company(siret, coord, df), target='cuda')
+                for siret, coord in zip(df_turnover['siret'], df_turnover['coordinates'])]
+
+        return data
 
     @staticmethod
     def compute_siret_prox(data_siret_prox, df):
@@ -184,3 +173,13 @@ class LocalBackupSuppliers:
         data_siret_prox = data_siret_prox[['siret', 'weight', 'dist', 'supplier', 'same_activite', 'code_supplier']]
         print('finish feature engineering ')
         return data_siret_prox
+
+    def compute_dist_for_company(self, siret, coord, df):
+        df['dist'] = df['coordinates'].apply(lambda row: 1 / geopy.distance.geodesic(coord, row).km if coord != row
+        else np.Inf)
+        df['init_siret'] = siret
+        df[['init_siret', 'siret', 'dist']].to_csv(f"{self.path_data_in}data_by_siret/siret_{str(siret)}_"
+                                                   f"{time.time()}.csv", sep=';',
+                                                   index=False)
+        return df
+
