@@ -120,29 +120,11 @@ class LocalBackupSuppliers:
         # data_final.to_csv(self.path_data_out + "LocalBackupSupplier.csv", sep=';', index=False)
         return data_final
 
-    def parallelize_dataframe(self, df):
-        print("begin multiprocessing ")
-        df_turnover = self.load_data_turnover()
-        # df_turnover = df_turnover.iloc[:1000, :]
-        num_partitions = self.num_core  # number of partitions to split dataframe
-        splitted_df = np.array_split(df_turnover, num_partitions)
-
-        args = [[splitted_df[i], df, i] for i in range(0, num_partitions)]
-        pool = multiprocessing.Pool(self.num_core)
-        start = time.time()
-        df_pool = pool.map(self.weight_parallele, args)
-        end = time.time()
-        print(f"temps du multiprocess : {end - start}")
-
-        return df_pool
-
-    def weight_parallele(self, split_df):
-        df = split_df[1]
-        df_turnover = split_df[0]
-
-        data = [vectorize(self.compute_dist_for_company(siret, coord, df), target='cuda')
-                for siret, coord in zip(df_turnover['siret'], df_turnover['coordinates'])]
-
+    def weight_parallele(self, df_turnover, df):
+        coordinates = [torch.tensor(df['coordinates'][row], device='cuda') for row in df.index]
+        coordinates_interet = [torch.tensor(df_turnover['coordinates'][row], device='cuda') for row in df.index]
+        data = [self.compute_dist_for_company(siret, coord, df['siret'], coordinates)
+                for siret, coord in zip(df_turnover['siret'], coordinates_interet)]
         return data
 
     @staticmethod
