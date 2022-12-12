@@ -3,11 +3,9 @@ import os
 import geopy.distance
 import pandas as pd
 import multiprocessing
-from numba import jit, cuda
 import time
-from numba import vectorize, int64, float64
 import numpy as np
-
+import torch
 
 class LocalBackupSuppliers:
     def __init__(self):
@@ -31,6 +29,7 @@ class LocalBackupSuppliers:
         df_turn = pd.read_csv(self.path_data_in + "offices-france.csv", sep=',',
                               converters={"coordinates": ast.literal_eval})
         return df_turn
+
     @staticmethod
     def preprocessing(data):
         data['code_cpf4'] = data['code'].apply(lambda row: str(row[:5]))
@@ -45,7 +44,15 @@ class LocalBackupSuppliers:
         del data_suppliers
         print('load data')
 
-        data_siret_prox = self.parallelize_dataframe(data_office)
+        print("begin multiprocessing ")
+        df_turnover = self.load_data_turnover()
+        data_dist = pd.read_csv(self.path_data_out + "local_backup_supplier_2022-12-12.csv", sep=';',
+                                dtype={'siret': str})
+        df_turnover = df_turnover[~df_turnover['siret'].isin(data_dist['siret'].to_list())]
+        df_turnover.sort_values(['siret'], ascending=False, inplace=True)
+        del data_dist
+
+        data_siret_prox = self.weight_parallele(df_turnover, data_office)
 
         data_siret_prox = self.compute_siret_prox(data_siret_prox, data_office)
 
@@ -174,12 +181,14 @@ class LocalBackupSuppliers:
         print('finish feature engineering ')
         return data_siret_prox
 
-    def compute_dist_for_company(self, siret, coord, df):
-        df['dist'] = df['coordinates'].apply(lambda row: 1 / geopy.distance.geodesic(coord, row).km if coord != row
-        else np.Inf)
-        df['init_siret'] = siret
-        df[['init_siret', 'siret', 'dist']].to_csv(f"{self.path_data_in}data_by_siret/siret_{str(siret)}_"
-                                                   f"{time.time()}.csv", sep=';',
-                                                   index=False)
-        return df
+    @staticmethod
+    def compute_dist_for_company(siret, coord, siret2, coord2):
+        print(f"compute distance for {siret}")
+        dist = [geopy.distance.geodesic(coord, row).km if coord != row else np.Inf for row in coord2]
+        # df['dist'] = df['coordinates'].apply(lambda row: 1 / geopy.distance.geodesic(coord, row).km if coord != row
+        # else np.Inf)
+        # df['init_siret'] = siret
+        df_numpy = np.array([siret for i in range(0, len(siret2))], siret2, dist)
+        df_numpy.tofile(f"os.getcwd() + /data/data_out/data_by_siret_1/siret_{str(siret)}_.csv", sep=';')
+        return df_numpy
 
