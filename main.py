@@ -30,12 +30,4 @@ def main(compute=False):
 
 
 if __name__ == '__main__':
-    import torch
-    print(torch.cuda.is_available())
-    X_train = torch.FloatTensor([0,1,2])
-    print(X_train.is_cuda)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
-    print(device)
-    X_train = X_train.to(device)
-    print(X_train.is_cuda)
-    # main(compute=True)  # compute is True if we want to compute index
+    main(compute=True)  # compute is True if we want to compute index

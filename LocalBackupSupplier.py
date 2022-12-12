@@ -122,9 +122,10 @@ class LocalBackupSuppliers:
 
     def weight_parallele(self, df_turnover, df):
         coordinates = [torch.tensor(df['coordinates'][row], device='cuda') for row in df.index]
-        coordinates_interet = [torch.tensor(df_turnover['coordinates'][row], device='cuda') for row in df.index]
-        data = [self.compute_dist_for_company(siret, coord, df['siret'], coordinates)
-                for siret, coord in zip(df_turnover['siret'], coordinates_interet)]
+        coordinates_interet = [torch.tensor(df_turnover['coordinates'][row], device='cuda')
+                               for row in df_turnover.index]
+        data = [self.compute_dist_for_company(df_turnover.iloc[index], coord, df, coordinates)
+                for index, coord in zip(df_turnover.index, coordinates_interet)]
         return data
 
     @staticmethod
@@ -164,13 +165,20 @@ class LocalBackupSuppliers:
         return data_siret_prox
 
     @staticmethod
-    def compute_dist_for_company(siret, coord, siret2, coord2):
-        print(f"compute distance for {siret}")
-        dist = [geopy.distance.geodesic(coord, row).km if coord != row else np.Inf for row in coord2]
-        # df['dist'] = df['coordinates'].apply(lambda row: 1 / geopy.distance.geodesic(coord, row).km if coord != row
-        # else np.Inf)
-        # df['init_siret'] = siret
-        df_numpy = np.array([siret for i in range(0, len(siret2))], siret2, dist)
-        df_numpy.tofile(f"os.getcwd() + /data/data_out/data_by_siret_1/siret_{str(siret)}_.csv", sep=';')
-        return df_numpy
+    def compute_dist_for_company(row_interest, coord, df, coord2):
+        siret = row_interest.loc['siret']
+        siret2 = df['siret']
+        dest = row_interest.loc['dest']
+        start = time.time()
+        dist = [geopy.distance.geodesic(coord, coord2[i]).km
+                for i in range(0, len(coord2))
+                if (df.at[i, 'code_cpf4'] in dest or list(set(dest) & set(df.at[i, 'dest'])))
+                ]
+        end = time.time()
+        print(f"Time to compute distance for {siret} is {end-start}.")
+        df = pd.DataFrame(siret2, columns=['siret'])
+        df['init_siret'] = siret
+        df['dist'] = dist
+        df.to_csv(f"{os.getcwd()}/data/data_in/data_by_siret_1/siret_{str(siret)}_.csv", sep=';', index=False)
+        return df
 
