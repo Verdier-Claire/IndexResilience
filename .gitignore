@@ -11,6 +11,7 @@
 /.idea
 /data/data_in/data-coordinates.csv
 /data/data_in/*
+/data/data_out/*
 /data
 .DS_Store
 /.idea/*

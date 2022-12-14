@@ -4,8 +4,16 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/data/data_in" />
       <excludeFolder url="file://$MODULE_DIR$/data/data_out" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/0" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/3" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/4" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/7" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/8" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/9" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/a" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore/f" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.9 (IndexResilience)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (IndexResilience)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
