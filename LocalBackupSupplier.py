@@ -42,11 +42,17 @@ class LocalBackupSuppliers:
 
         df_turn.sort_values('siret', ascending=True, inplace=True)
         df_turn = df_turn.iloc[:20000]
+        df_turn = df_turn[~df_turn['siret'].isin(['31047151100512', '34315912500024', '00572078400106',
+                                                  '34997086300024', '33052847200021', '31802333000026',
+                                                  '30146504300018', '32523991100010', '33053289600033',
+                                                  '31047158600019', '00572078400155', '34315938000017',
+                                                  '34997183800017', '31802336300027', '30146545600038',
+                                                  '32524017400012'])]
+
         df_turn = df_turn.merge(df[['siret', 'dest', 'qte']], on='siret', how='left')
         list_file = os.listdir(f"{self.path_data_in}data_by_siret_1")
         list_siret = [name[6:-5] for name in list_file]
         df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
-
         return df_turn
 
     @staticmethod
@@ -66,13 +72,6 @@ class LocalBackupSuppliers:
         print('finis compute distance between siret')
         return data_siret_prox
 
-
-    def weight_parallele(self, df_turnover, df):
-        coordinates = [torch.tensor(df['coordinates'][row], device='cuda') for row in df.index]
-        coordinates_interet = [torch.tensor(df_turnover['coordinates'][row], device='cuda')
-                               for row in df_turnover.index]
-        data = [self.compute_dist_for_company(df_turnover.iloc[index], coord, df, coordinates)
-                for index, coord in zip(df_turnover.index, coordinates_interet)]
     def parallelize_dataframe(self, df):
         print("begin multiprocessing ")
         num_partitions = self.num_core  # number of partitions to split dataframe
