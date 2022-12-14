@@ -5,7 +5,9 @@ import pandas as pd
 import multiprocessing
 import time
 import numpy as np
-import torch
+import psycopg2
+import sqlite3
+from contextlib import closing
 
 class LocalBackupSuppliers:
     def __init__(self):
@@ -13,6 +15,15 @@ class LocalBackupSuppliers:
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
         self.num_core = multiprocessing.cpu_count() - 3
+
+    @staticmethod
+    def get_connection():
+        conn = psycopg2.connect(user="iat",
+                                password='bR3fTAk2VkCNbDPg',
+                                host="localhost",
+                                port="5433",
+                                database="IndexResilience")
+        return conn
 
     def load_data(self):
         data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',',
@@ -90,20 +101,6 @@ class LocalBackupSuppliers:
         print('finish to compute Local Backup Supplier')
         return data_final
 
-    @staticmethod
-    def weight_index(siret1, coord1, siret2, coord2):
-        # initiate values
-        # siret1, siret2 = data_split.loc[index1, 'siret'], df.loc[index2, 'siret']
-
-        # compute distance between company 1 and company 2
-        dist = geopy.distance.geodesic(coord1, coord2).km
-
-        if dist < 1:
-            dist = 1
-        dist = 1 / dist
-
-        # ret = siret1, siret2, dist
-        return int(siret1), int(siret2), dist
 
     @staticmethod
     def save_data(data):
@@ -131,19 +128,16 @@ class LocalBackupSuppliers:
         df_turnover = df_turnover[~df_turnover['siret'].isin(list_siret)]
 
         splitted_df = np.array_split(df_turnover, num_partitions)
-
-        args = [[splitted_df[i], df, i] for i in range(0, num_partitions)]
+        args = [[splitted_df[i], df] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         start = time.time()
         df_pool = pool.map(self.weight_parallele, args)
-        end = time.time()
         # print(end - start)
-        # df_pool = pd.concat(df_pool)
-        # pool.close()
-        # pool.join()
-        # print('finish multiprocessing')
-        end = time.time()  #  0.6286258697509766
-
+        df_pool = pd.concat(df_pool)
+        pool.close()
+        pool.join()
+        print('finish multiprocessing')
+        end = time.time()  # 0.6286258697509766
         print(f"temps du multiprocess : {end - start}")
 
         return df_pool
@@ -151,10 +145,8 @@ class LocalBackupSuppliers:
     def weight_parallele(self, split_df):
         df = split_df[1]
         df_turnover = split_df[0]
-
-        data = [vectorize(self.compute_dist_for_company(siret, coord, df), target='cuda')
-                for siret, coord in zip(df_turnover['siret'], df_turnover['coordinates'])]
-
+        data = [self.dist_into_bdd(siret, coord, dest, df)
+                for siret, coord, dest in zip(df_turnover['siret'], df_turnover['coordinates'], df_turnover['dest'])]
         return data
 
     @staticmethod
@@ -192,5 +184,34 @@ class LocalBackupSuppliers:
         data_siret_prox = data_siret_prox[['siret', 'weight', 'dist', 'supplier', 'same_activite', 'code_supplier']]
         print('finish feature engineering ')
         return data_siret_prox
+
+    def dist_into_bdd(self, siret, coord, dest, df):
+        dist = self.compute_dist_for_company(siret, coord, dest, df)
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        table_dist = """ CREATE TABLE IF NOT EXISTS dist_siret(
+        siret VARCHAR, 
+        dict_siret_dist VARCHAR);
+        INSERT INTO  dist_siret(siret, dict_siret_dist)
+        VALUES (%s, %s);
+        """
+        cur.execute(table_dist, (siret, dist))
+        conn.commit()
+        cur.close()
+
+        return [siret, dist]
+
+    @staticmethod
+    def compute_dist_for_company(siret, coord, dest, df):
+        start = time.time()
+        dist = {df.at[row, 'siret']: geopy.distance.geodesic(coord, df.at[row, 'coordinates']).km
+                for row in df.index
+                if (df.at[row, 'code_cpf4'] in dest or list(set(dest) & set(df.at[row, 'dest'])) != [])}
+        end = time.time()
+        print(f"Time to compute distance for {siret} is {end-start}.")
+        return dist
+
+
 
 
