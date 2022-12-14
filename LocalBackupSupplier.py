@@ -12,7 +12,7 @@ class LocalBackupSuppliers:
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
-        self.num_core = multiprocessing.cpu_count() - 10
+        self.num_core = multiprocessing.cpu_count() - 3
 
     def load_data(self):
         data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',',
@@ -27,7 +27,8 @@ class LocalBackupSuppliers:
 
     def load_data_turnover(self):
         df_turn = pd.read_csv(self.path_data_in + "offices-france.csv", sep=',',
-                              converters={"coordinates": ast.literal_eval})
+                              converters={"coordinates": ast.literal_eval},
+                              dtype={'siret': str})
         return df_turn
 
     @staticmethod
@@ -40,6 +41,7 @@ class LocalBackupSuppliers:
         data_office, data_suppliers = self.load_data()
         data_office = self.preprocessing(data_office)
         data_office = data_office.merge(data_suppliers, on='code_cpf4', how='left')
+        # data_office = data_office.sample(100, random_state=3)
         del data_suppliers
         print('load data')
 
@@ -89,28 +91,19 @@ class LocalBackupSuppliers:
         return data_final
 
     @staticmethod
-    def weight_index(data_split, index1, df, index2):
-        """
-        compute distance between two company.
-        :param data_split:
-        :param index1:.
-        :param df:
-        :param index2:
-        :return: distance between two company, if one is a supplier of the other, if they are rival
-        """
-
+    def weight_index(siret1, coord1, siret2, coord2):
         # initiate values
-        siret1, siret2 = data_split.loc[index1, 'siret'], df.loc[index2, 'siret']
+        # siret1, siret2 = data_split.loc[index1, 'siret'], df.loc[index2, 'siret']
 
         # compute distance between company 1 and company 2
-        dist = geopy.distance.geodesic(data_split.loc[index1, 'coordinates'], df.loc[index2, 'coordinates']).km
+        dist = geopy.distance.geodesic(coord1, coord2).km
 
         if dist < 1:
             dist = 1
         dist = 1 / dist
 
-        ret = [siret1, siret2, dist]
-        return ret
+        # ret = siret1, siret2, dist
+        return int(siret1), int(siret2), dist
 
     @staticmethod
     def save_data(data):
@@ -126,6 +119,42 @@ class LocalBackupSuppliers:
                                for row in df_turnover.index]
         data = [self.compute_dist_for_company(df_turnover.iloc[index], coord, df, coordinates)
                 for index, coord in zip(df_turnover.index, coordinates_interet)]
+    def parallelize_dataframe(self, df):
+        print("begin multiprocessing ")
+        df_turnover = self.load_data_turnover()
+        num_partitions = self.num_core  # number of partitions to split dataframe
+        df_turnover.sort_values('siret', ascending=True, inplace=True)
+        df_turnover = df_turnover.iloc[:20000]
+        df_turnover = df_turnover.merge(df[['siret', 'dest', 'qte']], on='siret', how='left')
+        list_file = os.listdir(f"{self.path_data_in}data_by_siret_1")
+        list_siret = [name[6:-5] for name in list_file]
+        df_turnover = df_turnover[~df_turnover['siret'].isin(list_siret)]
+
+        splitted_df = np.array_split(df_turnover, num_partitions)
+
+        args = [[splitted_df[i], df, i] for i in range(0, num_partitions)]
+        pool = multiprocessing.Pool(self.num_core)
+        start = time.time()
+        df_pool = pool.map(self.weight_parallele, args)
+        end = time.time()
+        # print(end - start)
+        # df_pool = pd.concat(df_pool)
+        # pool.close()
+        # pool.join()
+        # print('finish multiprocessing')
+        end = time.time()  #  0.6286258697509766
+
+        print(f"temps du multiprocess : {end - start}")
+
+        return df_pool
+
+    def weight_parallele(self, split_df):
+        df = split_df[1]
+        df_turnover = split_df[0]
+
+        data = [vectorize(self.compute_dist_for_company(siret, coord, df), target='cuda')
+                for siret, coord in zip(df_turnover['siret'], df_turnover['coordinates'])]
+
         return data
 
     @staticmethod
