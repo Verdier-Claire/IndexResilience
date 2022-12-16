@@ -1,8 +1,11 @@
+import ast
 import os
-
+import geopy.distance
 import pandas as pd
+import multiprocessing
+import time
 import numpy as np
-import itertools
+import psycopg2
 
 
 class LocalBackupSuppliers:
@@ -10,105 +13,147 @@ class LocalBackupSuppliers:
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
+        self.num_core = multiprocessing.cpu_count() - 4
 
-    def load_turnover_data(self):
-        data = pd.read_csv(self.path_data_in + "turnover_with_other_data.csv", sep=";",
-                           dtype={"cpf4_x": str, "code_cpf_importation": str, 'departement_importation': str})
-        data.rename(columns={'code_cpf_importation': 'Code_CPF4', 'departement_importation': 'Code_depart'},
-                    inplace=True)
-        return data
+    @staticmethod
+    def get_connection(iat):
+        if iat == True:
+            conn = psycopg2.connect(user="iat",
+                                    password='bR3fTAk2VkCNbDPg',
+                                    host="localhost",
+                                    port="5432",
+                                    database="iat")
+        else:
+            conn = psycopg2.connect(user="iat",
+                                    password='bR3fTAk2VkCNbDPg',
+                                    host="localhost",
+                                    port="5432",
+                                    database="IndexResilience")
+        return conn
 
     def load_data(self):
-        data = pd.read_csv(self.path_data_in + "offices-france.csv", sep=',')
+        data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',',
+                           converters={'coordinates': ast.literal_eval},
+                           dtype={'siret': str})  # ast.literal_eval
+
+        data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
+                                     converters={'dest': ast.literal_eval, 'qte': ast.literal_eval},
+                                     dtype={'siret': str})
+        conn = self.get_connection(iat=True)
+        cur = conn.cursor()
+
+        table_siret = """SELECT siret FROM public.establishment
+        WHERE workforce_count = 0 OR workforce_count > 10"""
+        cur.execute(table_siret)
+        siret_list = cur.fetchall()
+        conn.commit()
+        cur.close()
+        siret_list = [item for t in siret_list for item in t]
+        data = data[data['siret'].isin(siret_list)]
+
+        return data, data_suppliers
+
+    def load_data_turnover(self, df):
+        df_turn = pd.read_csv(self.path_data_in + "offices-france.csv", sep=',',
+                              converters={"coordinates": ast.literal_eval},
+                              dtype={'siret': str})
+
+        df_turn.sort_values('siret', ascending=True, inplace=True)
+        df_turn = df_turn.iloc[40000:60000]
+        df_turn = df_turn[~df_turn['siret'].isin(['31047151100512', '34315912500024', '00572078400106',
+                                                  '34997086300024', '33052847200021', '31802333000026',
+                                                  '30146504300018', '32523991100010', '33053289600033',
+                                                  '31047158600019', '00572078400155', '34315938000017',
+                                                  '34997183800017', '31802336300027', '30146545600038',
+                                                  '32524017400012'])]
+
+        df_turn = df_turn.merge(df[['siret', 'dest', 'qte']], on='siret', how='left')
+        list_file = os.listdir(f"{self.path_data_in}data_by_siret_1")
+        list_siret = [name[6:-5] for name in list_file]
+        df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
+
+        conn = self.get_connection(iat=False)
+        cur = conn.cursor()
+        select_siret = """SELECT siret FROM public.dist_siret"""
+        cur.execute(select_siret)
+        siret_list = cur.fetchall()
+        conn.commit()
+        cur.close()
+        siret_list = [item for t in siret_list for item in t]
+        df_turn = df_turn[~df_turn['siret'].isin(siret_list)]
+        return df_turn
+
+    @staticmethod
+    def preprocessing(data):
+        data['code_cpf4'] = data['code'].apply(lambda row: str(row[:5]))
         return data
 
-    def same_company_for_supplier(self, data):
-        data_activity = data.copy()
-        groupby_cpf4 = data_activity.groupby(['code'])['siret'].apply(list)
-        groupby_cpf4 = groupby_cpf4.reset_index()
-        groupby_cpf4.rename(columns={'siret': 'list_siren_same_naf'}, inplace=True)
-        data_activity = data_activity.merge(groupby_cpf4, on='code')
+    def main_lbs(self):
+        print("begin compute lbs")
+        data_office, data_suppliers = self.load_data()
+        data_office = self.preprocessing(data_office)
+        data_office = data_office.merge(data_suppliers, on='code_cpf4', how='left')
+        del data_suppliers
+        print('load data')
 
-        data['list_siret_prox_same_naf'] = data_activity.apply(
-            lambda row: self.same_supplier_prox(row['siret_prox'], row['list_siren_same_naf']), axis=1)
-        data['qte'] = data['qte'].apply(eval)
-        data['denominateur'] = data.apply(lambda row: len(row[['list_siret_prox_same_naf']]) * sum(row['qte']), axis=1)
+        data_siret_prox = self.parallelize_dataframe(data_office)
+        print('finis compute distance between siret')
+        return data_siret_prox
 
+    def parallelize_dataframe(self, df):
+        print("begin multiprocessing ")
+        num_partitions = self.num_core  # number of partitions to split dataframe
+
+        df_turnover = self.load_data_turnover(df)
+
+        splitted_df = np.array_split(df_turnover, num_partitions)
+        args = [[splitted_df[i], df] for i in range(0, num_partitions)]
+        pool = multiprocessing.Pool(self.num_core)
+        start = time.time()
+        df_pool = pool.map(self.weight_parallele, args)
+        df_dist = pd.concat(df_pool)
+        pool.close()
+        pool.join()
+        print('finish multiprocessing')
+        end = time.time()
+        print(f"temps du multiprocess : {end - start}")
+
+        return df_dist
+
+    def weight_parallele(self, split_df):
+        df = split_df[1]
+        df_turnover = split_df[0]
+        data = [self.dist_into_bdd(siret, coord, dest, df)
+                for siret, coord, dest in zip(df_turnover['siret'], df_turnover['coordinates'], df_turnover['dest'])]
         return data
 
-    def exp_sum_qte_cards(self, list_siret, qte):
-        ret = len(list_siret) * np.array(qte)
-        ret = ret.sum()
-        return ret
+    def dist_into_bdd(self, siret, coord, dest, df):
+        dist = self.compute_dist_for_company(siret, coord, dest, df)
+        conn = self.get_connection(iat=False)
+        cur = conn.cursor()
 
-    def same_supplier_prox(self, list_dist, list_siret):
-        list_siret_prox = list(set(list_dist) & set(list_siret))
-        return list_siret_prox
+        table_dist = """ CREATE TABLE IF NOT EXISTS dist_siret(
+        siret VARCHAR, 
+        dict_siret_dist VARCHAR);
+        INSERT INTO  dist_siret(siret, dict_siret_dist)
+        VALUES (%s, %s);
+        """
+        cur.execute(table_dist, (siret, str(dist)))
+        conn.commit()
+        cur.close()
 
-    def nb_local_backup_supplier(self, data):
-        data['dest'] = data['dest'].apply(eval)
-        data['Card_lbs'] = data.apply(lambda row: self.card_lbs(data, row['dest'], row['siret_prox'], row['qte']),
-                                      axis=1)
-        return data
+        return [siret, dist]
 
-    def card_lbs(self, data, dest, dist_siret, qte):
-        card_supplier = []
-        for activite, weight in zip(dest, qte):
-            list_cpf4 = data[data['cpf4'] == activite]
-            list_siret = list_cpf4['siret']
-            list_lbs = list(set(list_siret) & set(dist_siret))
-            if (type(list_lbs) is int) or (list_lbs == []):
-                card_supplier.append(weight)  # Dans l'équation finale, on prend le max entre 1 et le card_supplier
-            else:
-                card_supplier.append(len(list_lbs)*weight)
-        ret = sum(card_supplier)
-        return ret
-
-    def code_to_cpf4(self, row):
-        ret = str(row)
-        if len(ret) != 5:
-            ret = ret[:-1]
-        return ret
-
-    def main_lbs(self, radius=100):
-
-        data_turnover = self.load_turnover_data()
-        print('load data_turnover')
-        data_turnover = data_turnover[['code', 'dest', 'qte']]
-        data_turnover = data_turnover.dropna().drop_duplicates()
-        data_office = self.load_data()
-        print('load data_office')
-        data_office = data_office.merge(data_turnover, on=['code'])  # perte de 7727 entreprises
-        del data_turnover
-        print('merge data')
-        # data_office = data_office.sample(1000)
-        data_office[['longitude', 'latitude']] = data_office['coordinates'].str.replace(
-            '(', '', regex=True).str.replace(')', '', regex=True).str.split(",", 1, expand=True)
-        data_office['longitude'] = data_office['longitude'].astype('float')
-        data_office['latitude'] = data_office['latitude'].astype('float')
-        siret_prox = [[data_office.loc[index1, 'siret'], data_office.loc[index2, 'siret']] for index1, index2
-                      in itertools.combinations(data_office.index, 2)
-                      if np.sqrt((data_office.loc[index1, 'longitude'] - data_office.loc[index2, 'longitude']) ** 2 +
-                                 (data_office.loc[index1, 'latitude'] - data_office.loc[index2, 'latitude']) ** 2) *
-                      111.319 <= radius]
-
-        print('finis compute proximities between siret')
-        data_siret_prox = pd.DataFrame(siret_prox, columns=['siret', 'siret_prox'])
-        data_siret_prox = data_siret_prox.groupby(['siret'])['siret_prox'].apply(list)
-        data_siret_prox = data_siret_prox.reset_index()
-        data_siret_prox.to_csv(self.path_data_in + "data_siret_prox_" + str(radius) + "km.csv", sep=";", index=False)
-        data_office = data_office.merge(data_siret_prox, on=['siret'], how='left')
-        data_office['siret_prox'].fillna("", inplace=True)
-        data_office['cpf4'] = data_office['code'].apply(lambda row: self.code_to_cpf4(row))
-        data_office = self.same_company_for_supplier(data_office)
-        print('finish compute same company for supplier')
-        data_office = self.nb_local_backup_supplier(data_office)
-        data_office['LocalBackupSuppliers'] = data_office.apply(lambda row: row['Card_lbs'] / row['denominateur'],
-                                                                axis=1)
-        data_final = self.save_data(data_office)
-        print('finish to compute Local Backup Supplier')
-        return data_final
-
+    @staticmethod
+    def compute_dist_for_company(siret, coord, dest, df):
+        start = time.time()
+        dist = {df.at[row, 'siret']: geopy.distance.geodesic(coord, df.at[row, 'coordinates']).km
+                for row in df.index
+                if (df.at[row, 'code_cpf4'] in dest or list(set(dest) & set(df.at[row, 'dest'])) != [])}
+        end = time.time()
+        print(f"Time to compute distance for {siret} is {end-start}.")
+        return dist
+       
     def save_data(self, data):
         data_final = data[['siret', 'code', 'LocalBackupSuppliers']]
         # data_final.to_csv(self.path_data_out + "LocalBackupSupplier.csv", sep=';', index=False)
