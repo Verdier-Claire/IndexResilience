@@ -32,24 +32,28 @@ class LocalBackupSuppliers:
         return conn
 
     def load_data(self):
-        data = pd.read_csv(self.path_data_in + "data-coordinates.csv", sep=',',
-                           converters={'coordinates': ast.literal_eval},
-                           dtype={'siret': str})  # ast.literal_eval
-
         data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
                                      converters={'dest': ast.literal_eval, 'qte': ast.literal_eval},
                                      dtype={'siret': str})
+
         conn = self.get_connection(iat=True)
         cur = conn.cursor()
 
-        table_siret = """SELECT siret FROM public.establishment
-        WHERE workforce_count = 0 OR workforce_count > 10"""
+        table_siret = """SELECT siret, address.coordinates, nomenclature_activity.code FROM public.establishment
+        JOIN public.address 
+        ON address.id = establishment.address_id 
+        JOIN public.nomenclature_activity
+        ON nomenclature_activity.id = establishment.main_activity_id
+        WHERE (workforce_count = 0 OR workforce_count > 10) AND address.coordinates IS NOT NULL 
+        AND nomenclature_activity.code IS NOT NULL;
+        """
         cur.execute(table_siret)
-        siret_list = cur.fetchall()
+        data = cur.fetchall()
         conn.commit()
         cur.close()
-        siret_list = [item for t in siret_list for item in t]
-        data = data[data['siret'].isin(siret_list)]
+
+        data = pd.DataFrame(data, columns=['siret', 'coordinates', 'code'])
+        data['coordinates'] = data['coordinates'].apply(eval)
 
         return data, data_suppliers
 
@@ -72,15 +76,20 @@ class LocalBackupSuppliers:
         list_siret = [name[6:-5] for name in list_file]
         df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
 
+        # select siret already run
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
-        select_siret = """SELECT siret FROM public.dist_siret"""
-        cur.execute(select_siret)
+
+        select_list_siret = """SELECT siret FROM public.dist_siret"""
+
+        cur.execute(select_list_siret)
         siret_list = cur.fetchall()
         conn.commit()
         cur.close()
         siret_list = [item for t in siret_list for item in t]
+
         df_turn = df_turn[~df_turn['siret'].isin(siret_list)]
+
         return df_turn
 
     @staticmethod
@@ -96,9 +105,9 @@ class LocalBackupSuppliers:
         del data_suppliers
         print('load data')
 
-        data_siret_prox = self.parallelize_dataframe(data_office)
+        self.parallelize_dataframe(data_office)
         print('finis compute distance between siret')
-        return data_siret_prox
+        return True
 
     def parallelize_dataframe(self, df):
         print("begin multiprocessing ")
@@ -110,39 +119,32 @@ class LocalBackupSuppliers:
         args = [[splitted_df[i], df] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         start = time.time()
-        df_pool = pool.map(self.weight_parallele, args)
-        df_dist = pd.concat(df_pool)
+        pool.map_async(self.weight_parallele, args)
+        #df_dist = pd.concat(df_pool)
         pool.close()
         pool.join()
         print('finish multiprocessing')
         end = time.time()
         print(f"temps du multiprocess : {end - start}")
 
-        return df_dist
-
     def weight_parallele(self, split_df):
         df = split_df[1]
         df_turnover = split_df[0]
-        data = [self.dist_into_bdd(siret, coord, dest, df)
+        [self.dist_into_bdd(siret, coord, dest, df)
                 for siret, coord, dest in zip(df_turnover['siret'], df_turnover['coordinates'], df_turnover['dest'])]
-        return data
 
     def dist_into_bdd(self, siret, coord, dest, df):
         dist = self.compute_dist_for_company(siret, coord, dest, df)
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
 
-        table_dist = """ CREATE TABLE IF NOT EXISTS dist_siret(
-        siret VARCHAR, 
-        dict_siret_dist VARCHAR);
+        table_dist = """
         INSERT INTO  dist_siret(siret, dict_siret_dist)
         VALUES (%s, %s);
         """
         cur.execute(table_dist, (siret, str(dist)))
         conn.commit()
         cur.close()
-
-        return [siret, dist]
 
     @staticmethod
     def compute_dist_for_company(siret, coord, dest, df):
@@ -153,8 +155,3 @@ class LocalBackupSuppliers:
         end = time.time()
         print(f"Time to compute distance for {siret} is {end-start}.")
         return dist
-       
-    def save_data(self, data):
-        data_final = data[['siret', 'code', 'LocalBackupSuppliers']]
-        # data_final.to_csv(self.path_data_out + "LocalBackupSupplier.csv", sep=';', index=False)
-        return data_final
