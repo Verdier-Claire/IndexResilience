@@ -24,8 +24,7 @@ class DistanceBetweenCompany:
                                     port="5433",
                                     database="iat")
         else:
-            conn = psycopg2.connect(user="iat",
-                                password='bR3fTAk2VkCNbDPg',
+            conn = psycopg2.connect(user="iat", password='bR3fTAk2VkCNbDPg',
                                 host="localhost",
                                 port="5433",
                                 database="IndexResilience")
@@ -34,7 +33,7 @@ class DistanceBetweenCompany:
     def load_data(self):
         data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
                                      converters={'dest': ast.literal_eval, 'qte': ast.literal_eval},
-                                     dtype={'siret': str})
+                                     dtype={'code_cpf4': str})
 
         conn = self.get_connection(iat=True)
         cur = conn.cursor()
