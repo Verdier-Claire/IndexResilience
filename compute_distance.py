@@ -8,7 +8,7 @@ import numpy as np
 import psycopg2
 
 
-class LocalBackupSuppliers:
+class DistanceBetweenCompany:
     def __init__(self):
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
