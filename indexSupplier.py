@@ -4,6 +4,7 @@ import psycopg2
 import os
 import ast
 import time
+import multiprocessing
 
 
 class LocalBackupSupplier:
@@ -11,6 +12,7 @@ class LocalBackupSupplier:
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
+        self.num_core = multiprocessing.cpu_count() - 2
 
     @staticmethod
     def get_connection(iat):
@@ -18,13 +20,13 @@ class LocalBackupSupplier:
             conn = psycopg2.connect(user="iat",
                                     password='bR3fTAk2VkCNbDPg',
                                     host="localhost",
-                                    port="5433",
+                                    port="5432",
                                     database="iat")
         else:
             conn = psycopg2.connect(user="iat",
                                     password='bR3fTAk2VkCNbDPg',
                                     host="localhost",
-                                    port="5433",
+                                    port="5432",
                                     database="IndexResilience")
         return conn
 
@@ -32,7 +34,7 @@ class LocalBackupSupplier:
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
         table_dist = """SELECT siret, dict_siret_dist FROM dist_siret
-        LIMIT 10;"""
+        LIMIT 30;"""
         cur.execute(table_dist)
         data = cur.fetchall()
         data = pd.DataFrame(data, columns=['siret', 'dict_siret'])
@@ -59,7 +61,7 @@ class LocalBackupSupplier:
     @staticmethod
     def preprocessing(df, df_act):
         df['dict_siret'] = df['dict_siret'].apply(eval)
-        df_act['code_cpf4'] = df_act['code'].apply(lambda row: row[:5], axis=1)
+        df_act['code_cpf4'] = df_act['code'].apply(lambda row: row[:5])
         return df, df_act
 
     @staticmethod
@@ -68,7 +70,10 @@ class LocalBackupSupplier:
         df = df.merge(df_suppliers, on=['code_cpf4'])
         return df
 
-    def compute_index(self, df, df_act, df_suppliers):
+    def compute_index(self, args):
+        df = args[0]
+        df_act = args[1]
+        df_suppliers = args[2]
         [self.compute_index_row(df.at[row, 'dict_siret'], df.at[row, 'dest'],
                                 df_act, df_suppliers, df.at[row, 'siret'])
          for row in df.index]
@@ -91,7 +96,7 @@ class LocalBackupSupplier:
         end = time.time()
         print(f"Finish to compute lbs for {siret} in {(end - start)/60}")
 
-        conn = self.get_connection()
+        conn = self.get_connection(iat=False)
         cur = conn.cursur()
         table_index = """CREATE TABLE IF NOT EXIST localbackupsupplier(siret VARCHAR, lbs FLOAT)
         INSERT INTO localbackupsupplier(siret, lbs)
@@ -100,6 +105,15 @@ class LocalBackupSupplier:
         cur.execute(table_index, (siret, result))
         conn.commit()
         cur.close()
+
+    def parallelize_dataframe(self, df, df_act, df_suppliers):
+        num_partitions = self.num_core
+        splitted_df = np.array_split(df, num_partitions)
+        args = [[splitted_df[i], df_act, df_suppliers] for i in range(0, num_partitions)]
+        pool = multiprocessing.Pool(self.num_core)
+        pool.map_async(self.compute_index, args)
+        pool.close()
+        pool.join()
 
     def main(self):
         print("begin compute index Local Backup Supplier")
@@ -111,7 +125,8 @@ class LocalBackupSupplier:
         print("finish preprocessing data")
         data = self.merge_data(data, data_act, data_suppliers)
         print("merge three data and begin compute index")
-        self.compute_index(data, data_act, data_suppliers)
+
+        self.parallelize_dataframe(data, data_act, data_suppliers)
         del data, data_act, data_suppliers
 
 
