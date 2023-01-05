@@ -33,8 +33,7 @@ class LocalBackupSupplier:
     def load_from_sql(self):
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
-        table_dist = """SELECT siret, dict_siret_dist FROM dist_siret
-        LIMIT 30;"""
+        table_dist = """SELECT siret, dict_siret_dist FROM dist_siret"""
         cur.execute(table_dist)
         data = cur.fetchall()
         data = pd.DataFrame(data, columns=['siret', 'dict_siret'])
@@ -74,27 +73,29 @@ class LocalBackupSupplier:
         df = args[0]
         df_act = args[1]
         df_suppliers = args[2]
-        [self.compute_index_row(df.at[row, 'dict_siret'], df.at[row, 'dest'],
+        [self.compute_index_row(df.at[row, 'dict_siret'], df.at[row, 'dest'], df.at[row, 'qte'],
                                 df_act, df_suppliers, df.at[row, 'siret'])
          for row in df.index]
 
-    def compute_index_row(self, dict_siret, list_dest, df_act, df_suppliers, siret):
+    def compute_index_row(self, dict_siret, list_dest, list_qte, df_act, df_suppliers, siret):
         start = time.time()
         data_row = pd.DataFrame(dict_siret, columns=['siret', 'dist'])
         data_row = data_row.merge(df_act, on=['siret'])
         data_row = data_row.merge(df_suppliers, on=['code_cpf4'])
         data_row['dist'] = 1/data_row['dist']
 
-        data_result = [[row['dist'], row['code_cpf4'] in list_dest, list(set(row['dest'] & set(list_dest))) != []]
+        data_result = [[row['dist'], self.weight_numerator(row['code_cpf4'], list_dest, list_qte),
+                        row['cpde_cpf4'] in list_dest,
+                        list(set(row['dest'] & set(list_dest))) != []]
                        for row in data_row]
-        data_result = pd.DataFrame(data_result, columns=['dist', 'num', 'den'])
+        data_result = pd.DataFrame(data_result, columns=['dist', 'weight', 'num', 'den'])
         numerateur = data_result.query("num == True")
-        numerateur = numerateur['dist'].sum()
+        numerateur = numerateur['dist'].mul(numerateur['weight']).sum()
         denominateur = data_result[data_result['den'] == True]
         denominateur = denominateur['dist'].sum()
         result = numerateur / denominateur
         end = time.time()
-        print(f"Finish to compute lbs for {siret} in {(end - start)/60}")
+        print(f"Finish to compute lbs ({result})for {siret} in {(end - start)/60}")
 
         conn = self.get_connection(iat=False)
         cur = conn.cursur()
@@ -128,6 +129,14 @@ class LocalBackupSupplier:
 
         self.parallelize_dataframe(data, data_act, data_suppliers)
         del data, data_act, data_suppliers
+
+    @staticmethod
+    def weight_numerator(cpf4, list_dest, qte):
+        if cpf4 in list_dest:
+            weight = qte[list_dest.index(cpf4)]
+        else:
+            weight = 1
+        return weight
 
 
 if __name__ == "__main__":
