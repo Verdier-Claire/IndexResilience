@@ -21,12 +21,12 @@ class DistanceBetweenCompany:
             conn = psycopg2.connect(user="iat",
                                     password='bR3fTAk2VkCNbDPg',
                                     host="localhost",
-                                    port="5433",
+                                    port="5432",
                                     database="iat")
         else:
             conn = psycopg2.connect(user="iat", password='bR3fTAk2VkCNbDPg',
                                 host="localhost",
-                                port="5433",
+                                port="5432",
                                 database="IndexResilience")
         return conn
 
@@ -60,6 +60,9 @@ class DistanceBetweenCompany:
         df_turn = pd.read_csv(self.path_data_in + "offices-france.csv", sep=',',
                               converters={"coordinates": ast.literal_eval},
                               dtype={'siret': str})
+        df_turn['Siren'] = df['siret'].apply(lambda row: row[:9])
+        df_turnover = pd.read_csv(self.path_data_in + "compute_turnover_french_companies_2016_2021.csv", sep=';')
+        df_turn = df_turn.merge(df_turnover[['Siren']], on=['Siren'])
 
         df_turn.sort_values('siret', ascending=True, inplace=True)
         df_turn = df_turn.iloc[:20000]
