@@ -66,7 +66,7 @@ class DistanceBetweenCompany:
         else row)
 
         df_turn = df.merge(df_turnover[['Siren']], on=['Siren'])
-
+        del df_turnover
         df_turn.sort_values('siret', ascending=True, inplace=True)
         df_turn = df_turn.iloc[:8000]
         df_turn = df_turn[~df_turn['siret'].isin(['31047151100512', '34315912500024', '00572078400106',
@@ -76,11 +76,11 @@ class DistanceBetweenCompany:
                                                   '34997183800017', '31802336300027', '30146545600038',
                                                   '32524017400012'])]
 
-        df_turn = df_turn.merge(df[['siret', 'dest', 'qte']], on='siret', how='left')
         list_file = os.listdir(f"/Volumes/OpenStudio/4. Recherche, développement et innovation/2-Documents en cours"
                                f"/3. RECHERCHE/Recherche Claire Verdier/data/data_by_siret_1")
         list_siret = [name[6:-5] for name in list_file]
         df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
+        print(f"le data df_turn a {df_turn.shape} comme dimension")
 
         # select siret already run
         # conn = self.get_connection(iat=False)
@@ -125,8 +125,8 @@ class DistanceBetweenCompany:
         args = [[splitted_df[i], df] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         start = time.time()
-        pool.map_async(self.weight_parallele, args)
-        #df_dist = pd.concat(df_pool)
+        df_pool = pool.map(self.weight_parallele, args)
+
         pool.close()
         pool.join()
         print('finish multiprocessing')
@@ -136,8 +136,9 @@ class DistanceBetweenCompany:
     def weight_parallele(self, split_df):
         df = split_df[1]
         df_turnover = split_df[0]
-        [self.dist_into_bdd(siret, coord, dest, df)
+        a = [self.dist_into_bdd(siret, coord, dest, df)
                 for siret, coord, dest in zip(df_turnover['siret'], df_turnover['coordinates'], df_turnover['dest'])]
+        return True
 
     def dist_into_bdd(self, siret, coord, dest, df):
         dist = self.compute_dist_for_company(siret, coord, dest, df)
