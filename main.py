@@ -1,11 +1,11 @@
 import os
 import pandas as pd
 from AgilityCompanyProduction import AgilityCompanyProduct
-from LocalBackupSupplier import LocalBackupSuppliers
+from compute_distance import DistanceBetweenCompany
 from VersatilityCompanyWorkforce import Versatility
 from ResilienceFlows import ResilienceSupplyFlows
 Versa = Versatility()
-lbs = LocalBackupSuppliers()
+lbs = DistanceBetweenCompany()
 acp = AgilityCompanyProduct()
 Resflow = ResilienceSupplyFlows()
 
