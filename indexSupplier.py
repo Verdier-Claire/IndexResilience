@@ -109,7 +109,7 @@ class LocalBackupSupplier:
         #    denominateur = 1
         # result = numerateur / denominateur
         end = time.time()
-        print(f"Finish to compute lbs ({result})for {siret} in {(end - start)/60}")
+        print(f"Finish to compute lbs for {siret} in {(end - start)/60}")
 
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
