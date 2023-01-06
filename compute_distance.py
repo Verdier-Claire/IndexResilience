@@ -21,12 +21,12 @@ class DistanceBetweenCompany:
             conn = psycopg2.connect(user="iat",
                                     password='bR3fTAk2VkCNbDPg',
                                     host="localhost",
-                                    port="5432",
+                                    port="5433",
                                     database="iat")
         else:
             conn = psycopg2.connect(user="iat", password='bR3fTAk2VkCNbDPg',
                                 host="localhost",
-                                port="5432",
+                                port="5433",
                                 database="IndexResilience")
         return conn
 
@@ -43,9 +43,11 @@ class DistanceBetweenCompany:
         ON address.id = establishment.address_id 
         JOIN public.nomenclature_activity
         ON nomenclature_activity.id = establishment.main_activity_id
-        WHERE (workforce_count = 0 OR workforce_count > 10) AND address.coordinates IS NOT NULL 
+        WHERE address.coordinates IS NOT NULL 
         AND nomenclature_activity.code IS NOT NULL;
         """
+        #  (workforce_count = 0 OR workforce_count > 10) AND
+
         cur.execute(table_siret)
         data = cur.fetchall()
         conn.commit()
@@ -57,15 +59,16 @@ class DistanceBetweenCompany:
         return data, data_suppliers
 
     def load_data_turnover(self, df):
-        df_turn = pd.read_csv(self.path_data_in + "offices-france.csv", sep=',',
-                              converters={"coordinates": ast.literal_eval},
-                              dtype={'siret': str})
-        df_turn['Siren'] = df['siret'].apply(lambda row: row[:9])
-        df_turnover = pd.read_csv(self.path_data_in + "compute_turnover_french_companies_2016_2021.csv", sep=';')
-        df_turn = df_turn.merge(df_turnover[['Siren']], on=['Siren'])
+        df['Siren'] = df['siret'].apply(lambda row: str(row[:9]))
+        df_turnover = pd.read_csv(self.path_data_in + "turnover_with_other_data.csv", sep=';',
+                                  dtype={'Siren': str})
+        df_turnover['Siren'] = df_turnover['Siren'].apply(lambda row: (9 - len(row)) * "0" + row if len(row) < 9
+        else row)
+
+        df_turn = df.merge(df_turnover[['Siren']], on=['Siren'])
 
         df_turn.sort_values('siret', ascending=True, inplace=True)
-        df_turn = df_turn.iloc[:20000]
+        df_turn = df_turn.iloc[:8000]
         df_turn = df_turn[~df_turn['siret'].isin(['31047151100512', '34315912500024', '00572078400106',
                                                   '34997086300024', '33052847200021', '31802333000026',
                                                   '30146504300018', '32523991100010', '33053289600033',
@@ -74,23 +77,24 @@ class DistanceBetweenCompany:
                                                   '32524017400012'])]
 
         df_turn = df_turn.merge(df[['siret', 'dest', 'qte']], on='siret', how='left')
-        list_file = os.listdir(f"{self.path_data_in}data_by_siret_1")
+        list_file = os.listdir(f"/Volumes/OpenStudio/4. Recherche, développement et innovation/2-Documents en cours"
+                               f"/3. RECHERCHE/Recherche Claire Verdier/data/data_by_siret_1")
         list_siret = [name[6:-5] for name in list_file]
         df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
 
         # select siret already run
-        conn = self.get_connection(iat=False)
-        cur = conn.cursor()
+        # conn = self.get_connection(iat=False)
+        # cur = conn.cursor()
 
-        select_list_siret = """SELECT siret FROM public.dist_siret"""
+        # select_list_siret = """SELECT siret FROM public.dist_siret"""
 
-        cur.execute(select_list_siret)
-        siret_list = cur.fetchall()
-        conn.commit()
-        cur.close()
-        siret_list = [item for t in siret_list for item in t]
+        # cur.execute(select_list_siret)
+        # siret_list = cur.fetchall()
+        # conn.commit()
+        # cur.close()
+        # siret_list = [item for t in siret_list for item in t]
 
-        df_turn = df_turn[~df_turn['siret'].isin(siret_list)]
+        # df_turn = df_turn[~df_turn['siret'].isin(siret_list)]
 
         return df_turn
 
@@ -140,7 +144,7 @@ class DistanceBetweenCompany:
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
 
-        table_dist = """
+        table_dist = """CREATE TABLE IF NOT EXISTS dist_siret(siret VARCHAR, dist FLOAT)
         INSERT INTO  dist_siret(siret, dict_siret_dist)
         VALUES (%s, %s);
         """
