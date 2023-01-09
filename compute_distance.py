@@ -21,12 +21,12 @@ class DistanceBetweenCompany:
             conn = psycopg2.connect(user="iat",
                                     password='bR3fTAk2VkCNbDPg',
                                     host="localhost",
-                                    port="5433",
+                                    port="5432",
                                     database="iat")
         else:
             conn = psycopg2.connect(user="iat", password='bR3fTAk2VkCNbDPg',
                                 host="localhost",
-                                port="5433",
+                                port="5432",
                                 database="IndexResilience")
         return conn
 
@@ -39,13 +39,13 @@ class DistanceBetweenCompany:
         conn = self.get_connection(iat=True)
         cur = conn.cursor()
 
-        suppliers = """SELECT nace as code_cpf4, array_agg(qte),  array_agg(dest)  FROM public.iot_consume_nace
-        WHERE qte > 0.00001
-        GROUP BY nace"""
+        suppliers = """SELECT nace as code_cpf4, array_agg(dest)  FROM public.iot_consume_nace
+        WHERE qte > 0.00001 and NOT (dest = 'W-Adj') AND dest IS NOT NULL 
+        GROUP BY nace;"""
         cur.execute(suppliers)
         data_suppliers = cur.fetchall()
         conn.commit()
-        data_suppliers = pd.DataFrame(data_suppliers, columns=['code_cpf4', 'dest', 'qte'])
+        data_suppliers = pd.DataFrame(data_suppliers, columns=['code_cpf4', 'dest'])
 
 
         table_siret = """SELECT siret, address.coordinates, nomenclature_activity.code, 
@@ -72,7 +72,7 @@ class DistanceBetweenCompany:
         return data, data_suppliers
 
     def load_data_turnover(self, df):
-        df_turnover = pd.read_csv(self.path_data_in + "turnover_with_other_data.csv", sep=';',
+        df_turnover = pd.read_csv(f"{self.path_data_in}_turnover_with_other_data.csv", sep=';',
                                   dtype={'Siren': str})
         df_turnover['Siren'] = df_turnover['Siren'].apply(lambda row: (9 - len(row)) * "0" + row if len(row) < 9
         else row)
@@ -80,7 +80,7 @@ class DistanceBetweenCompany:
         df_turn = df.merge(df_turnover[['Siren']], on=['Siren'])
         del df_turnover
         df_turn.sort_values('siret', ascending=True, inplace=True)
-        df_turn = df_turn.iloc[:8000]
+        df_turn = df_turn.iloc[8000:]
         df_turn = df_turn[~df_turn['siret'].isin(['31047151100512', '34315912500024', '00572078400106',
                                                   '34997086300024', '33052847200021', '31802333000026',
                                                   '30146504300018', '32523991100010', '33053289600033',
@@ -88,9 +88,9 @@ class DistanceBetweenCompany:
                                                   '34997183800017', '31802336300027', '30146545600038',
                                                   '32524017400012'])]
 
-        list_file = os.listdir(f"/Volumes/OpenStudio/4. Recherche, développement et innovation/2-Documents en cours/3. RECHERCHE/Recherche Claire Verdier/data/data_by_siret_1")
-        list_siret = [name[6:-5] for name in list_file]
-        df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
+        # list_file = os.listdir(f"/Volumes/OpenStudio/4. Recherche, développement et innovation/2-Documents en cours/3. RECHERCHE/Recherche Claire Verdier/data/data_by_siret_1")
+        # list_siret = [name[6:-5] for name in list_file]
+        # df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
         print(f"le data df_turn a {df_turn.shape} comme dimension")
 
         # select siret already run
@@ -118,8 +118,9 @@ class DistanceBetweenCompany:
     def main_lbs(self):
         print("begin compute lbs")
         data_office, data_suppliers = self.load_data()
-        data_suppliers = self.preprocessing(data_suppliers)
+        # data_suppliers = self.preprocessing(data_suppliers)
         data_office = data_office.merge(data_suppliers, on='code_cpf4', how='left')
+        data_office["dest"] = data_office['dest'].fillna("").apply(list)
         del data_suppliers
         print('load data')
 
@@ -137,7 +138,7 @@ class DistanceBetweenCompany:
         args = [[splitted_df[i], df] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         start = time.time()
-        df_pool = pool.map_async(self.weight_parallele, args)
+        df_pool = pool.map(self.weight_parallele, args)
 
         pool.close()
         pool.join()
@@ -167,11 +168,11 @@ class DistanceBetweenCompany:
 
     @staticmethod
     def compute_dist_for_company(siret, coord, dest, df):
-
         start = time.time()
         dist = {df.at[row, 'siret']: geopy.distance.geodesic(coord, df.at[row, 'coordinates']).km
                 for row in df.index
-                if (df.at[row, 'code_cpf4'] in dest or list(set(dest) & set(df.at[row, 'dest'])) != [])}
+                if (df.at[row, 'code_cpf4'] in dest or
+                    list(set(dest) & set(df.at[row, 'dest'])) != [])}
         end = time.time()
         print(f"Time to compute distance for {siret} is {(end-start)/ 60} min.")
         return dist
