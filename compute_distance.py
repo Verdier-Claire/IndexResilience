@@ -31,14 +31,27 @@ class DistanceBetweenCompany:
         return conn
 
     def load_data(self):
-        data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
-                                     converters={'dest': ast.literal_eval, 'qte': ast.literal_eval},
-                                     dtype={'code_cpf4': str})
+
+        # data_suppliers = pd.read_csv(self.path_data_in + "data_suppliers.csv", sep=';',
+        #                              converters={'dest': ast.literal_eval, 'qte': ast.literal_eval},
+        #                              dtype={'code_cpf4': str})
 
         conn = self.get_connection(iat=True)
         cur = conn.cursor()
 
-        table_siret = """SELECT siret, address.coordinates, nomenclature_activity.code FROM public.establishment
+        suppliers = """SELECT nace as code_cpf4, array_agg(qte),  array_agg(dest)  FROM public.iot_consume_nace
+        WHERE qte > 0.00001
+        GROUP BY nace"""
+        cur.execute(suppliers)
+        data_suppliers = cur.fetchall()
+        conn.commit()
+        data_suppliers = pd.DataFrame(data_suppliers, columns=['code_cpf4', 'dest', 'qte'])
+
+
+        table_siret = """SELECT siret, address.coordinates, nomenclature_activity.code, 
+        LEFT(nomenclature_activity.code, 5) as code_cpf4, 
+        LEFT(siret, 9) as siren
+         FROM public.establishment
         JOIN public.address 
         ON address.id = establishment.address_id 
         JOIN public.nomenclature_activity
@@ -53,13 +66,12 @@ class DistanceBetweenCompany:
         conn.commit()
         cur.close()
 
-        data = pd.DataFrame(data, columns=['siret', 'coordinates', 'code'])
+        data = pd.DataFrame(data, columns=['siret', 'coordinates', 'code', 'code_cpf4', 'Siren'])
         data['coordinates'] = data['coordinates'].apply(eval)
 
         return data, data_suppliers
 
     def load_data_turnover(self, df):
-        df['Siren'] = df['siret'].apply(lambda row: str(row[:9]))
         df_turnover = pd.read_csv(self.path_data_in + "turnover_with_other_data.csv", sep=';',
                                   dtype={'Siren': str})
         df_turnover['Siren'] = df_turnover['Siren'].apply(lambda row: (9 - len(row)) * "0" + row if len(row) < 9
@@ -76,8 +88,7 @@ class DistanceBetweenCompany:
                                                   '34997183800017', '31802336300027', '30146545600038',
                                                   '32524017400012'])]
 
-        list_file = os.listdir(f"/Volumes/OpenStudio/4. Recherche, développement et innovation/2-Documents en cours"
-                               f"/3. RECHERCHE/Recherche Claire Verdier/data/data_by_siret_1")
+        list_file = os.listdir(f"/Volumes/OpenStudio/4. Recherche, développement et innovation/2-Documents en cours/3. RECHERCHE/Recherche Claire Verdier/data/data_by_siret_1")
         list_siret = [name[6:-5] for name in list_file]
         df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
         print(f"le data df_turn a {df_turn.shape} comme dimension")
@@ -99,14 +110,15 @@ class DistanceBetweenCompany:
         return df_turn
 
     @staticmethod
-    def preprocessing(data):
-        data['code_cpf4'] = data['code'].apply(lambda row: str(row[:5]))
-        return data
+    def preprocessing(data_suppliers):
+        data_suppliers['qte'] = data_suppliers['qte'] = data_suppliers['qte'].astype(str)
+        # data_suppliers['dest'] = data_suppliers['dest'].apply(eval)
+        return data_suppliers
 
     def main_lbs(self):
         print("begin compute lbs")
         data_office, data_suppliers = self.load_data()
-        data_office = self.preprocessing(data_office)
+        data_suppliers = self.preprocessing(data_suppliers)
         data_office = data_office.merge(data_suppliers, on='code_cpf4', how='left')
         del data_suppliers
         print('load data')
@@ -125,7 +137,7 @@ class DistanceBetweenCompany:
         args = [[splitted_df[i], df] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         start = time.time()
-        df_pool = pool.map(self.weight_parallele, args)
+        df_pool = pool.map_async(self.weight_parallele, args)
 
         pool.close()
         pool.join()
@@ -145,20 +157,21 @@ class DistanceBetweenCompany:
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
 
-        table_dist = """CREATE TABLE IF NOT EXISTS dist_siret(siret VARCHAR, dist FLOAT)
+        table_dist = """CREATE TABLE IF NOT EXISTS dist_siret(siret VARCHAR, dict_siret_dist FLOAT);
         INSERT INTO  dist_siret(siret, dict_siret_dist)
         VALUES (%s, %s);
         """
-        cur.execute(table_dist, (siret, str(dist)))
+        cur.execute(table_dist, (siret, f"{dist}"))
         conn.commit()
         cur.close()
 
     @staticmethod
     def compute_dist_for_company(siret, coord, dest, df):
+
         start = time.time()
         dist = {df.at[row, 'siret']: geopy.distance.geodesic(coord, df.at[row, 'coordinates']).km
                 for row in df.index
                 if (df.at[row, 'code_cpf4'] in dest or list(set(dest) & set(df.at[row, 'dest'])) != [])}
         end = time.time()
-        print(f"Time to compute distance for {siret} is {end-start}.")
+        print(f"Time to compute distance for {siret} is {(end-start)/ 60} min.")
         return dist
