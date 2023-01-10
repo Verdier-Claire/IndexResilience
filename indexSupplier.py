@@ -30,25 +30,26 @@ class LocalBackupSupplier:
                                     database="IndexResilience")
         return conn
 
-    def load_from_sql(self):
+    def load_from_sql(self, offset):
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
         table_dist = """SELECT siret, dict_siret_dist FROM dist_siret
-        LIMIT 20 OFFSET 480;"""
+        LIMIT 20 OFFSET %s"""%(offset)
         cur.execute(table_dist)
         data = cur.fetchall()
         data = pd.DataFrame(data, columns=['siret', 'dict_siret'])
         cur.close()
         conn = self.get_connection(iat=True)
         cur = conn.cursor()
-        table_data = """SELECT siret, nomenclature_activity.code FROM public.establishment
+        table_data = """SELECT siret, nomenclature_activity.code, LEFT(nomenclature_activity.code, 5) 
+        FROM public.establishment
         JOIN public.nomenclature_activity
         ON nomenclature_activity.id = establishment.main_activity_id
         WHERE nomenclature_activity.code IS NOT NULL;
         """
         cur.execute(table_data)
         data_act = cur.fetchall()
-        data_act = pd.DataFrame(data_act, columns=['siret', 'code'])
+        data_act = pd.DataFrame(data_act, columns=['siret', 'code', 'code_cpf4'])
         cur.close()
         return data, data_act
 
@@ -61,7 +62,6 @@ class LocalBackupSupplier:
     @staticmethod
     def preprocessing(df, df_act):
         df['dict_siret'] = df['dict_siret'].apply(eval)
-        df_act['code_cpf4'] = df_act['code'].apply(lambda row: row[:5])
         return df, df_act
 
     @staticmethod
@@ -95,7 +95,7 @@ class LocalBackupSupplier:
         data_result['dist'].replace(np.inf, 1000, inplace=True)
         numerateur = data_result.query("num == True")
 
-        numerateur['dist_weight'] = numerateur['dist'].mul(numerateur['weight'])
+        numerateur.loc[:, 'dist_weight'] = numerateur.loc[:, 'dist'].mul(numerateur.loc[:, 'weight'])
         num = numerateur.groupby(['code_cpf4'])['dist_weight'].sum().reset_index()
 
         # numerateur = numerateur['dist'].mul(numerateur['weight']).groupby('code_cpf4').sum()
@@ -126,23 +126,24 @@ class LocalBackupSupplier:
         splitted_df = np.array_split(df, num_partitions)
         args = [[splitted_df[i], df_act, df_suppliers] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
-        pool.map_async(self.compute_index, args)
+        pool.map(self.compute_index, args)
         pool.close()
         pool.join()
 
     def main(self):
-        print("begin compute index Local Backup Supplier")
-        data, data_act = self.load_from_sql()
-        print("finish load sql data")
-        data_suppliers = self.load_from_csv()
-        print("finish load csv data")
-        data, data_act = self.preprocessing(data, data_act)
-        print("finish preprocessing data")
-        data = self.merge_data(data, data_act, data_suppliers)
-        print("merge three data and begin compute index")
+        for offset in range(0, 600, 20):
+            print(f"begin compute index Local Backup Supplier for range {offset}")
+            data, data_act = self.load_from_sql(offset)
+            print("finish load sql data")
+            data_suppliers = self.load_from_csv()
+            print("finish load csv data")
+            data, data_act = self.preprocessing(data, data_act)
+            print("finish preprocessing data")
+            data = self.merge_data(data, data_act, data_suppliers)
+            print("merge three data and begin compute index")
 
-        self.parallelize_dataframe(data, data_act, data_suppliers)
-        del data, data_act, data_suppliers
+            self.parallelize_dataframe(data, data_act, data_suppliers)
+            del data, data_act, data_suppliers
 
     @staticmethod
     def weight_numerator(cpf4, list_dest, qte):
