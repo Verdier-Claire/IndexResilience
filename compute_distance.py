@@ -149,30 +149,26 @@ class DistanceBetweenCompany:
     def weight_parallele(self, split_df):
         df = split_df[1]
         df_turnover = split_df[0]
-        a = [self.dist_into_bdd(siret, coord, dest, df)
+        a = [self.compute_dist_for_company(siret, coord, dest, df)
                 for siret, coord, dest in zip(df_turnover['siret'], df_turnover['coordinates'], df_turnover['dest'])]
         return True
 
-    def dist_into_bdd(self, siret, coord, dest, df):
-        dist = self.compute_dist_for_company(siret, coord, dest, df)
-        conn = self.get_connection(iat=False)
-        cur = conn.cursor()
-
-        table_dist = """CREATE TABLE IF NOT EXISTS dist_siret(siret VARCHAR, dict_siret_dist FLOAT);
-        INSERT INTO  dist_siret(siret, dict_siret_dist)
-        VALUES (%s, %s);
-        """
-        cur.execute(table_dist, (siret, f"{dist}"))
-        conn.commit()
-        cur.close()
-
-    @staticmethod
-    def compute_dist_for_company(siret, coord, dest, df):
+    def compute_dist_for_company(self, siret, coord, dest, df):
         start = time.time()
         dist = {df.at[row, 'siret']: geopy.distance.geodesic(coord, df.at[row, 'coordinates']).km
                 for row in df.index
                 if (df.at[row, 'code_cpf4'] in dest or
                     list(set(dest) & set(df.at[row, 'dest'])) != [])}
         end = time.time()
+        conn = self.get_connection(iat=False)
+        cur = conn.cursor()
+
+        table_dist = """CREATE TABLE IF NOT EXISTS dist_siret(siret VARCHAR, dict_siret_dist VARCHAR);
+        INSERT INTO  dist_siret(siret, dict_siret_dist)
+        VALUES (%s, %s);
+        """
+        cur.execute(table_dist, (siret, f"{dist}"))
+        conn.commit()
+        cur.close()
         print(f"Time to compute distance for {siret} is {(end-start)/ 60} min.")
-        return dist
+
