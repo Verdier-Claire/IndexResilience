@@ -137,7 +137,7 @@ class DistanceBetweenCompany:
         args = [[splitted_df[i], df] for i in range(0, num_partitions)]
         pool = multiprocessing.Pool(self.num_core)
         start = time.time()
-        df_pool = pool.map_async(self.weight_parallele, args)
+        df_pool = pool.map(self.weight_parallele, args)
 
         pool.close()
         pool.join()
@@ -158,7 +158,7 @@ class DistanceBetweenCompany:
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
 
-        table_dist = """CREATE TABLE IF NOT EXISTS dist_siret(siret VARCHAR, dict_siret_dist FLOAT);
+        table_dist = """CREATE TABLE IF NOT EXISTS dist_siret(siret VARCHAR, dict_siret_dist VARCHAR);
         INSERT INTO  dist_siret(siret, dict_siret_dist)
         VALUES (%s, %s);
         """
