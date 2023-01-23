@@ -39,13 +39,14 @@ class DistanceBetweenCompany:
         conn = self.get_connection(iat=True)
         cur = conn.cursor()
 
-        suppliers = """SELECT nace as code_cpf4, array_agg(dest)  FROM public.iot_consume_nace
+        suppliers = """SELECT nace as code_cpf4, array_agg(dest) as dest FROM public.iot_consume_nace
         WHERE qte > 0.00001 and NOT (dest = 'W-Adj') AND dest IS NOT NULL 
         GROUP BY nace;"""
         cur.execute(suppliers)
         data_suppliers = cur.fetchall()
+        colnames = [desc[0] for desc in cur.description]
         conn.commit()
-        data_suppliers = pd.DataFrame(data_suppliers, columns=['code_cpf4', 'dest'])
+        data_suppliers = pd.DataFrame(data_suppliers, columns=colnames)
 
 
         table_siret = """SELECT siret, address.coordinates, nomenclature_activity.code, 
@@ -63,21 +64,23 @@ class DistanceBetweenCompany:
 
         cur.execute(table_siret)
         data = cur.fetchall()
+        colnames = [desc[0] for desc in cur.description]
         conn.commit()
+
         cur.close()
 
-        data = pd.DataFrame(data, columns=['siret', 'coordinates', 'code', 'code_cpf4', 'Siren'])
+        data = pd.DataFrame(data, columns=colnames)
         data['coordinates'] = data['coordinates'].apply(eval)
 
         return data, data_suppliers
 
     def load_data_turnover(self, df):
         df_turnover = pd.read_csv(f"{self.path_data_in}turnover_with_other_data.csv", sep=';',
-                                  dtype={'Siren': str})
-        df_turnover['Siren'] = df_turnover['Siren'].apply(lambda row: (9 - len(row)) * "0" + row if len(row) < 9
+                                  dtype={'Siren': str}).rename(columns={'Siren': 'siren'})
+        df_turnover['siren'] = df_turnover['siren'].apply(lambda row: (9 - len(row)) * "0" + row if len(row) < 9
         else row)
 
-        df_turn = df.merge(df_turnover[['Siren']], on=['Siren'])
+        df_turn = df.merge(df_turnover[['siren']], on=['siren'])
         del df_turnover
         df_turn.sort_values('siret', ascending=True, inplace=True)
         df_turn = df_turn.iloc[:8000]
@@ -97,7 +100,7 @@ class DistanceBetweenCompany:
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
 
-        select_list_siret = """SELECT siret FROM public.dist_siret"""
+        select_list_siret = """SELECT siret FROM public.localbackupsupplier"""
         cur.execute(select_list_siret)
         siret_list = cur.fetchall()
         conn.commit()
