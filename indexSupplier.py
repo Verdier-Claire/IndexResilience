@@ -33,7 +33,10 @@ class LocalBackupSupplier:
     def load_from_sql(self, offset):
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
-        table_dist = """SELECT siret, dict_siret_dist FROM dist_siret
+        table_dist = """SELECT dist_siret.siret, dict_siret_dist FROM dist_siret
+        LEFT JOIN localbackupsupplier
+        ON dist_siret.siret = localbackupsupplier.siret
+        WHERE localbackupsupplier.lbs IS NULL 
         LIMIT 20 OFFSET %s"""%(offset)
         cur.execute(table_dist)
         data = cur.fetchall()
@@ -131,19 +134,20 @@ class LocalBackupSupplier:
         pool.join()
 
     def main(self):
-        for offset in range(0, 600, 20):
+        for offset in range(0, 1200, 20):
             print(f"begin compute index Local Backup Supplier for range {offset}")
             data, data_act = self.load_from_sql(offset)
-            print("finish load sql data")
-            data_suppliers = self.load_from_csv()
-            print("finish load csv data")
-            data, data_act = self.preprocessing(data, data_act)
-            print("finish preprocessing data")
-            data = self.merge_data(data, data_act, data_suppliers)
-            print("merge three data and begin compute index")
+            if not data.empty:
+                print("finish load sql data")
+                data_suppliers = self.load_from_csv()
+                print("finish load csv data")
+                data, data_act = self.preprocessing(data, data_act)
+                print("finish preprocessing data")
+                data = self.merge_data(data, data_act, data_suppliers)
+                print("merge three data and begin compute index")
 
-            self.parallelize_dataframe(data, data_act, data_suppliers)
-            del data, data_act, data_suppliers
+                self.parallelize_dataframe(data, data_act, data_suppliers)
+                del data, data_act, data_suppliers
 
     @staticmethod
     def weight_numerator(cpf4, list_dest, qte):
