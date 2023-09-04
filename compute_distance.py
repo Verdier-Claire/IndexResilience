@@ -13,7 +13,7 @@ class DistanceBetweenCompany:
         self.path = os.getcwd()
         self.path_data_in = os.getcwd() + "/data/data_in/"
         self.path_data_out = os.getcwd() + "/data/data_out/"
-        self.num_core = multiprocessing.cpu_count() - 2
+        self.num_core = multiprocessing.cpu_count() - 6
 
     @staticmethod
     def get_connection(iat):
@@ -80,33 +80,33 @@ class DistanceBetweenCompany:
         df_turn = df.merge(df_turnover[['Siren']], on=['Siren'])
         del df_turnover
         df_turn.sort_values('siret', ascending=True, inplace=True)
-        df_turn = df_turn.iloc[8000:]
-        df_turn = df_turn[~df_turn['siret'].isin(['31047151100512', '34315912500024', '00572078400106',
-                                                  '34997086300024', '33052847200021', '31802333000026',
-                                                  '30146504300018', '32523991100010', '33053289600033',
-                                                  '31047158600019', '00572078400155', '34315938000017',
-                                                  '34997183800017', '31802336300027', '30146545600038',
-                                                  '32524017400012'])]
+        df_turn = df_turn.iloc[:8000]
+        # df_turn = df_turn[~df_turn['siret'].isin(['31047151100512', '34315912500024', '00572078400106',
+        #                                           '34997086300024', '33052847200021', '31802333000026',
+        #                                           '30146504300018', '32523991100010', '33053289600033',
+        #                                           '31047158600019', '00572078400155', '34315938000017',
+        #                                           '34997183800017', '31802336300027', '30146545600038',
+        #                                           '32524017400012'])]
 
-        # list_file = os.listdir(f"/Volumes/OpenStudio/4. Recherche, développement et innovation/2-Documents en cours/3. RECHERCHE/Recherche Claire Verdier/data/data_by_siret_1")
+        # list_file = os.listdir(f"/Volumes/OpenStudio/4. Recherche, développement et innovation/2-Documents en cours/
+        # 3. RECHERCHE/Recherche Claire Verdier/data/data_by_siret_1")
         # list_siret = [name[6:-5] for name in list_file]
         # df_turn = df_turn[~df_turn['siret'].isin(list_siret)]
         print(f"le data df_turn a {df_turn.shape} comme dimension")
 
         # select siret already run
-        # conn = self.get_connection(iat=False)
-        # cur = conn.cursor()
+        conn = self.get_connection(iat=False)
+        cur = conn.cursor()
 
-        # select_list_siret = """SELECT siret FROM public.dist_siret"""
+        select_list_siret = """SELECT siret FROM public.localbackupsupplier"""
+        cur.execute(select_list_siret)
+        siret_list = cur.fetchall()
+        conn.commit()
+        cur.close()
+        siret_list = [item for t in siret_list for item in t]
 
-        # cur.execute(select_list_siret)
-        # siret_list = cur.fetchall()
-        # conn.commit()
-        # cur.close()
-        # siret_list = [item for t in siret_list for item in t]
-
-        # df_turn = df_turn[~df_turn['siret'].isin(siret_list)]
-
+        df_turn = df_turn[~df_turn['siret'].isin(siret_list)]
+        print(f"le data df_turn a {df_turn.shape} comme dimension")
         return df_turn
 
     @staticmethod
@@ -157,8 +157,8 @@ class DistanceBetweenCompany:
         start = time.time()
         dist = {df.at[row, 'siret']: geopy.distance.geodesic(coord, df.at[row, 'coordinates']).km
                 for row in df.index
-                if (df.at[row, 'code_cpf4'] in dest or
-                    list(set(dest) & set(df.at[row, 'dest'])) != [])}
+                if ((df.at[row, 'code_cpf4'] in dest) or
+                    (list(set(dest) & set(df.at[row, 'dest'])) != []))}
         end = time.time()
         conn = self.get_connection(iat=False)
         cur = conn.cursor()
