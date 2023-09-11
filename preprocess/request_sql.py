@@ -15,6 +15,11 @@ class RequestSql:
                                              host="localhost",
                                              port="5432",
                                              database="pappers")
+        self.conn_iat = psycopg2.connect(user="iat",
+                                             password="bR3fTAk2VkCNbDPg",
+                                             host="localhost",
+                                             port="5432",
+                                             database="iat")
 
     def insert_table(self, table_sql):
         conn_index = self.conn_pappers
@@ -242,3 +247,25 @@ class RequestSql:
                         Date_de_cloture_exercice_2020 DATE, CA_2020 FLOAT, Résultat_2020 FLOAT, Effectif_2020 FLOAT,
                         tranche_ca_millesime_2020 VARCHAR);"""
         self.insert_table(table_index)
+
+
+    def select_data_export(self):
+        table = """SELECT * FROM data_export;"""
+        data = self.select_table(table)
+        return data
+
+    def select_data_import(self):
+        table = """SELECT * FROM data_import;"""
+        data = self.select_table(table)
+        return data
+
+    def select_table(self, table):
+        conn = self.conn_pappers
+        cur = conn.cursor()
+        cur.execute(table)
+        data = cur.fetchall()
+        conn.commit()
+        cur.close()
+
+        data = pd.DataFrame(data)
+        return data
