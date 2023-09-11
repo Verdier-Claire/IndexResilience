@@ -31,6 +31,13 @@ class Preprocess():
            database="pappers"
               )
         self.cursor = self.conn_pappers.cursor()
+        self.conn_iat = psycopg2.connect(
+           user = "iat",
+           password = "bR3fTAk2VkCNbDPg",
+           host = "localhost",
+           port = "5432",
+           database = "iat"
+              )
 
     def recup_siret_list(self):
             """
@@ -75,8 +82,8 @@ class Preprocess():
         data_final = data[data["siret"].isin(liste_siret)]
         return data_final
 
-    def select_activity(self, conn):
-        cur = conn.cursor()
+    def select_activity(self):
+        cur = self.conn_iat.cursor()
         select_list_activity = """ SELECT DISTINCT meta -> 'activity'
                                     FROM establishment 
                                     WHERE meta -> 'activity' IS NOT NULL
@@ -84,7 +91,7 @@ class Preprocess():
                                """
         cur.execute(select_list_activity)
         list_activity = cur.fetchall()
-        conn.commit()
+        self.conn_iat.commit()
         list_activity =[item for t in list_activity for item in t]
         return list_activity
 
@@ -102,17 +109,17 @@ class Preprocess():
     def get_all_data(self, data_final, infogreffe):
         name_table = 'croisement_infogreffe_complet_2022'
         infogreffe = self.pretraitement_data(infogreffe)
-        data_final = self.pretraitement(data_final)
+        # data_final = self.pretraitement(data_final)
 
         all_info= pd.merge(infogreffe, data_final, on='Siren', how="inner")
         incomplete_data = data_final[~data_final.index.isin(all_info.index.tolist())]
-        with open(f"{self.path}/data/col_to_keep.json", 'r', encoding="utf-8") as f:
-            col_to_keep = json.load(f)[name_table]
+        # with open(f"{self.path}/data/col_to_keep.json", 'r', encoding="utf-8") as f:
+        #     col_to_keep = json.load(f)[name_table]
 
-        all_info = all_info.replace({pd.NaT: None})
+        # all_info = all_info.replace({pd.NaT: None})
 
-        RequestSql().create_table_croisement_infogreffe_2018_2022()
-        RequestSql().execute_values(all_info[col_to_keep], name_table)
+        # RequestSql().create_table_croisement_infogreffe_2018_2022()
+        # RequestSql().execute_values(all_info[col_to_keep], name_table)
 
         return all_info, incomplete_data
 
@@ -126,15 +133,9 @@ class Preprocess():
         data["Siren"] = data["Siren"].apply(lambda x : "0" + x if len(x)<9 else x)
         return data
 
-    def pretraitement(self, data_final):
-        data_final["Siren"] = data_final["Siren"].astype(str)
-        data_final["Siren"] = data_final["Siren"].apply(lambda x: "0" + x if len(x)<9 else x)
-        return data_final
-
     def get_incomplete_year(self, data, infogreffe):
-        data = Preprocess().pretraitement(data)
         infogreffe = Preprocess().pretraitement_data(infogreffe)
-        info_first_year = pd.merge(infogreffe, data, left_on=infogreffe["Siren"] , right_on=data["Siren"] ,how="inner" )
+        info_first_year = pd.merge(infogreffe, data, left_on=infogreffe["Siren"],  right_on=data["Siren"], how="inner" )
         incomplete_data = data[~data.index.isin(info_first_year.index.tolist())]
 
         return info_first_year, incomplete_data
@@ -145,8 +146,7 @@ class Preprocess():
 
         #data["Changement Adresse"] = data.apply(lambda x : True if x[])
 
-    def arrange_ca(self, data):
-        # data = data.apply(lambda x: Preprocess().get_ca(x),axis=1)
+    def get_2019_2020(self, data):
         name_table = 'croisement_infogreffe_2019_2020'
         data.reset_index(names='Siren', inplace=True)
         with open(f"{self.path}/data/col_to_keep.json", 'r', encoding="utf-8") as f:
@@ -259,36 +259,39 @@ def main():
 
     liste_data = Infogreffe().read_excel()
     data_infogreffe, liste_data = Infogreffe().sorted_companies(liste_data)
-    # data_final_clean = Preprocess().get_clean_data(data_final)
-    # liste_data = Preprocess().preprocess_data(liste_data)
 
-    # Function that stored all establishment in Atlas Tables
-    liste_siret, conn = Preprocess().recup_siret_list()
+    # create table for each year to 2022
+    Infogreffe().get_2022(liste_data)
+    print("Fin des get 2022")
+
     # Function that read Arnault database
     data_atlas = Preprocess().read_data()
     # Function that select only establishment in Atlas Table
     # data_atlas = Preprocess().select_atlas(data, liste_siret)
     # Function that select only activities inside Atlas app
-    list_activity = Preprocess().select_activity(conn)
+    list_activity = Preprocess().select_activity()
     # Function that select in Arnault's dataset only establishment with  included Atlas's activities
     data_final = Preprocess().select_company(data_atlas, list_activity)
 
     establishment_final, incomplete_data = Preprocess().get_all_data(data_final,data_infogreffe)
 
     print("Fin du pré-processing")
+    # join chiffre clé 2018 with chiffre clé 2019 and with chiffre clé 2020
+    # infogreffe_only_2first : 2018 join 2019 , infogreffe_first_year_comp : join 2018 - 2019 -2020
     infogreffe_only_2first,infogreffe_first_year_comp = Infogreffe().get_first_year_comp(liste_data)
+
     infogreffe_first_year_comp, incomplete_data = Preprocess().get_incomplete_year(incomplete_data,infogreffe_first_year_comp)
     # infogreffe_first_year_comp.to_excel(f"{os.getcwd()}/data/data_out/croisement_infogreffe_2018_2019.xlsx")
-    #Infogreffe().get_2018_2019(infogreffe_first_year_comp)
+    Infogreffe().get_2018_2019(infogreffe_first_year_comp)
+
+    # join chiffre clé 2019 with chiffre clé 2020 and with chiffre clé 2021
+    # infogreffe_only_2first : 2019 join 2020 , infogreffe_first_year_comp : join 2019 - 2020 -2021
     info_only_2midlle, infogreffe_middle_year_comp = Infogreffe().get_midlle_year_comp(liste_data)
     infogreffe_middle_year_comp, incomplete_data = Preprocess().get_incomplete_year(incomplete_data, infogreffe_middle_year_comp)
-
-    infogreffe_etired_year_comp = Infogreffe().get_etired_year(liste_data)
-
     #infogreffe_etired_year_comp, incomplete_data  = Preprocess.get_all_data(incomplete_data, infogreffe_etired_year_comp)
 
 
-    Preprocess().arrange_ca(infogreffe_middle_year_comp)
+    Preprocess().get_2019_2020(infogreffe_middle_year_comp)
     #infogreffe_etired_year_comp= Preprocess.manipulate_localisation(infogreffe_etired_year_comp)
     # all_data = Infogreffe().all_companies(liste_data)
 
@@ -298,11 +301,12 @@ def main():
     # Preprocess().count_occur(list_cgt)
 
     print("FIN des  croisements")
+    infogreffe_etired_year_comp = Infogreffe().get_etired_year(liste_data)
     Infogreffe().get_turnover_data(infogreffe_etired_year_comp)
     Infogreffe().get_employees_data(infogreffe_etired_year_comp)
     Infogreffe().get_results_data(infogreffe_etired_year_comp)
 
-    Infogreffe().get_2022(liste_data)
+
 
 
 if __name__=="__main__":

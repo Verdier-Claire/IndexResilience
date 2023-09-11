@@ -96,7 +96,7 @@ class RequestSql:
         Date_de_cloture_exercice_2020 DATE,	CA_2020 FLOAT, Résultat_2020 FLOAT,	Effectif_2020 FLOAT,	
         Date_de_cloture_exercice_2019 DATE, CA_2019 FLOAT, Résultat_2019 FLOAT, Effectif_2019 FLOAT,
         Date_de_cloture_exercice_2018 DATE, CA_2018 FLOAT, Résultat_2018 FLOAT, Effectif_2018 FLOAT,
-        tranche_ca_millesime_2020 VARCHAR, tranche_ca_millesime_2019 VARCHAR, tranche_ca_millesime_2017,
+        tranche_ca_millesime_2020 VARCHAR, tranche_ca_millesime_2019 VARCHAR, tranche_ca_millesime_2017 VARCHAR,
         Dénomination_2022 VARCHAR, Forme_Juridique_2022 VARCHAR, Code_APE_2022 VARCHAR,
         Code_Greffe_2022 VARCHAR, Date_immatriculation_2022 DATE,
         Date_radiation_2022 DATE, Statut_2022 VARCHAR, Date_de_publication_2022 DATE,
@@ -112,7 +112,7 @@ class RequestSql:
                       Code_Greffe_2021 VARCHAR, 
                        Date_immatriculation_2021 DATE, Date_radiation_2021 DATE, Statut_2021 VARCHAR,
                         Date_de_publication_2021 DATE, 
-                       Date_de_cloture_exercice_2021 DATE, CA_2021 DATE, Résultat_2021 FLOAT, Effectif_2021 FLOAT, 
+                       Date_de_cloture_exercice_2021 DATE, CA_2021 FLOAT, Résultat_2021 FLOAT, Effectif_2021 FLOAT, 
                       Date_de_cloture_exercice_2020 DATE, CA_2020 FLOAT, 
                        Résultat_2020 FLOAT, Effectif_2020 FLOAT, Date_de_cloture_exercice_2019 DATE,
                        CA_2019 FLOAT, Résultat_2019 FLOAT, Effectif_2019 FLOAT, tranche_ca_millesime_2021 VARCHAR,
@@ -188,41 +188,41 @@ class RequestSql:
                        """
         self.insert_table(table)
 
-    def create_table_croisement_infogreffe_2018_2022(self):
+    # def create_table_croisement_infogreffe_2018_2022(self):
 
-        table = f"""DROP TABLE IF EXISTS croisement_infogreffe_complet_2022;
-        CREATE TABLE IF NOT EXISTS croisement_infogreffe_complet_2022(Siren VARCHAR,
-                       Denomination_2018 VARCHAR, Forme_Juridique_2018 VARCHAR, Code_APE_2018 VARCHAR, 
-                       Code_Greffe_2018 VARCHAR,
-                       Date_immatriculation_2018 DATE, Date_radiation_2018 DATE, Statut_2018 VARCHAR,
-                       Date_de_publication_2018 DATE, Date_de_cloture_exercice_2018 DATE,
-                       CA_2018 FLOAT, Resultat_2018 FLOAT, Effectif_2018 FLOAT,
-                       Date_de_cloture_exercice_2017 DATE, CA_2017 FLOAT, Resultat_2017 FLOAT, Effectif_2017 FLOAT,
-                       Date_de_cloture_exercice_2016 DATE, CA_2016 FLOAT, Resultat_2016 FLOAT,
-                       Effectif_2016 FLOAT, tranche_ca_millesime_2018 VARCHAR, tranche_ca_millesime_2017 VARCHAR,
-                       tranche_ca_millesime_2016 VARCHAR,
-                       Denomination_2019 VARCHAR, Forme_Juridique_2019 VARCHAR, Code_APE_2019 VARCHAR,
-                        Code_Greffe_2019 VARCHAR,
-                        Date_immatriculation_2019 DATE, Date_radiation_2019 DATE, Statut_2019 VARCHAR,
-                       Date_de_publication_2019 DATE, Date_de_cloture_exercice_2019 DATE,
-                       CA_2019 FLOAT, Résultat_2019 FLOAT, Effectif_2019 FLOAT, tranche_ca_millesime_2019 VARCHAR,
-                       Denomination_2020 VARCHAR, Forme_Juridique_2020 VARCHAR, Code_APE_2020 VARCHAR, 
-                       Code_Greffe_2020 VARCHAR,
-                       Date_immatriculation_2020 DATE, Date_radiation_2020 DATE, Statut_2020 VARCHAR,
-                       Date_de_publication_2020 DATE, Date_de_cloture_exercice_2020 DATE,
-                       CA_2020 FLOAT, Resultat_2020 FLOAT, Effectif_2020 FLOAT, tranche_ca_millesime_2020 VARCHAR,
-                       Denomination_2021 VARCHAR, Forme_Juridique_2021 VARCHAR, Code_APE_2021 VARCHAR, 
-                       Code_Greffe_2021 VARCHAR,
-                       Date_immatriculation_2021 DATE, Date_radiation_2021 DATE, Statut_2021 VARCHAR,
-                       Date_de_publication_2021 DATE, Date_de_cloture_exercice_2021 DATE,
-                       CA_2021 FLOAT, Resultat_2021 FLOAT, Effectif_2021 FLOAT, tranche_ca_millesime_2021 VARCHAR,
-                       Denomination_2022 VARCHAR, Forme_Juridique_2022 VARCHAR, Code_APE_2022 VARCHAR, 
-                       Code_Greffe_2022 VARCHAR,
-                       Date_immatriculation_2022 DATE, Date_radiation_2022 DATE, Statut_2022 VArCHAR,
-                       Date_de_publication_2022 DATE, Date_de_cloture_exercice_2022 DATE,
-                       CA_2022 FLOAT, Resultat_2022 FLOAT, Effectif_2022 FLOAT, tranche_ca_millesime_1_2022 VARCHAR);"""
+    #     table = f"""DROP TABLE IF EXISTS croisement_infogreffe_complet_2022;
+    #     CREATE TABLE IF NOT EXISTS croisement_infogreffe_complet_2022(Siren VARCHAR,
+    #                    Denomination_2018 VARCHAR, Forme_Juridique_2018 VARCHAR, Code_APE_2018 VARCHAR,
+    #                    Code_Greffe_2018 VARCHAR,
+    #                    Date_immatriculation_2018 DATE, Date_radiation_2018 DATE, Statut_2018 VARCHAR,
+    #                    Date_de_publication_2018 DATE, Date_de_cloture_exercice_2018 DATE,
+    #                    CA_2018 FLOAT, Resultat_2018 FLOAT, Effectif_2018 FLOAT,
+    #                    Date_de_cloture_exercice_2017 DATE, CA_2017 FLOAT, Resultat_2017 FLOAT, Effectif_2017 FLOAT,
+    #                    Date_de_cloture_exercice_2016 DATE, CA_2016 FLOAT, Resultat_2016 FLOAT,
+    #                    Effectif_2016 FLOAT, tranche_ca_millesime_2018 VARCHAR, tranche_ca_millesime_2017 VARCHAR,
+    #                    tranche_ca_millesime_2016 VARCHAR,
+    #                    Denomination_2019 VARCHAR, Forme_Juridique_2019 VARCHAR, Code_APE_2019 VARCHAR,
+    #                     Code_Greffe_2019 VARCHAR,
+    #                     Date_immatriculation_2019 DATE, Date_radiation_2019 DATE, Statut_2019 VARCHAR,
+    #                    Date_de_publication_2019 DATE, Date_de_cloture_exercice_2019 DATE,
+    #                    CA_2019 FLOAT, Résultat_2019 FLOAT, Effectif_2019 FLOAT, tranche_ca_millesime_2019 VARCHAR,
+    #                    Denomination_2020 VARCHAR, Forme_Juridique_2020 VARCHAR, Code_APE_2020 VARCHAR,
+    #                    Code_Greffe_2020 VARCHAR,
+    #                    Date_immatriculation_2020 DATE, Date_radiation_2020 DATE, Statut_2020 VARCHAR,
+    #                    Date_de_publication_2020 DATE, Date_de_cloture_exercice_2020 DATE,
+    #                    CA_2020 FLOAT, Resultat_2020 FLOAT, Effectif_2020 FLOAT, tranche_ca_millesime_2020 VARCHAR,
+    #                    Denomination_2021 VARCHAR, Forme_Juridique_2021 VARCHAR, Code_APE_2021 VARCHAR,
+    #                    Code_Greffe_2021 VARCHAR,
+    #                    Date_immatriculation_2021 DATE, Date_radiation_2021 DATE, Statut_2021 VARCHAR,
+    #                    Date_de_publication_2021 DATE, Date_de_cloture_exercice_2021 DATE,
+    #                    CA_2021 FLOAT, Resultat_2021 FLOAT, Effectif_2021 FLOAT, tranche_ca_millesime_2021 VARCHAR,
+    #                    Denomination_2022 VARCHAR, Forme_Juridique_2022 VARCHAR, Code_APE_2022 VARCHAR,
+    #                    Code_Greffe_2022 VARCHAR,
+    #                    Date_immatriculation_2022 DATE, Date_radiation_2022 DATE, Statut_2022 VArCHAR,
+    #                    Date_de_publication_2022 DATE, Date_de_cloture_exercice_2022 DATE,
+    #                    CA_2022 FLOAT, Resultat_2022 FLOAT, Effectif_2022 FLOAT, tranche_ca_millesime_1_2022 VARCHAR);"""
 
-        self.insert_table(table)
+    #     self.insert_table(table)
 
     def create_table_croisement_infogreffe_2019_2020(self):
         table_index = """DROP TABLE IF EXISTS croisement_infogreffe_2019_2020;
