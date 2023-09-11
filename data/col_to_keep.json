@@ -118,16 +118,16 @@
                      "tranche_ca_millesime_3_2021"],
 
   "croisement_infogreffe_2018_2019": ["Siren",
-                       "Dénomination_2018", "Forme Juridique_2018", "Code APE_2018", "Adresse_2018", "Code postal_2018",
-                       "Num. dept._2018", "Code Greffe_2018", "Date immatriculation_2018", "Date radiation_2018",
+                       "Dénomination_2018", "Forme Juridique_2018", "Code APE_2018",
+    "Code Greffe_2018", "Date immatriculation_2018", "Date radiation_2018",
                        "Statut_2018", "Date de publication_2018", "Millesime 1_2018", "Date de cloture exercice 1_2018",
                        "CA 1_2018", "Résultat 1_2018", "Effectif 1_2018", "Millesime 2_2018",
                        "Date de cloture exercice 2_2018", "CA 2_2018", "Résultat 2_2018", "Effectif 2_2018",
                        "Millesime 3_2018", "Date de cloture exercice 3_2018", "CA 3_2018", "Résultat 3_2018",
                        "Effectif 3_2018", "tranche_ca_millesime_1_2018", "tranche_ca_millesime_2_2018",
                        "tranche_ca_millesime_3_2018",
-                       "Dénomination_2019", "Forme Juridique_2019", "Code APE_2019", "Adresse_2019", "Code postal_2019",
-                       "Num. dept._2019", "Code Greffe_2019", "Date immatriculation_2019", "Date radiation_2019",
+                       "Dénomination_2019", "Forme Juridique_2019", "Code APE_2019",
+    "Code Greffe_2019", "Date immatriculation_2019", "Date radiation_2019",
                        "Statut_2019", "Date de publication_2019", 	"Millesime 1_2019", "Date de cloture exercice 1_2019",
                        "CA 1_2019", "Résultat 1_2019", "Effectif 1_2019", "tranche_ca_millesime_1_2019"]
 

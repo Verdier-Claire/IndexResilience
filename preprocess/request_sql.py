@@ -81,9 +81,9 @@ class RequestSql:
         Dénomination_2022 VARCHAR, Forme_Juridique_2022 VARCHAR, Code_APE_2022 VARCHAR,
         Code_Greffe_2022 VARCHAR, Date_immatriculation_2022 DATE,
         Date_radiation_2022 DATE, Statut_2022 VARCHAR, Date_de_publication_2022 DATE,
-        Date_de_cloture_exercice_2022 DATE, CA_2022 FLOAT, Résultat_2022 FLOAT, Effectif_2022 INT,
-        Date_de_cloture_exercice_2021 DATE, CA_2021 FLOAT, Résultat_2021 FLOAT,	Effectif_2021 INT, 
-        Date_de_cloture_exercice_2020 DATE, CA_2020 FLOAT, Résultat_2020 FLOAT,	Effectif_2020 INT,
+        Date_de_cloture_exercice_2022 DATE, CA_2022 FLOAT, Résultat_2022 FLOAT, Effectif_2022 FLOAT,
+        Date_de_cloture_exercice_2021 DATE, CA_2021 FLOAT, Résultat_2021 FLOAT,	Effectif_2021 FLOAT, 
+        Date_de_cloture_exercice_2020 DATE, CA_2020 FLOAT, Résultat_2020 FLOAT,	Effectif_2020 FLOAT,
         tranche_ca_millesime_2022 VARCHAR, tranche_ca_millesime_2021 VARCHAR, tranche_ca_millesime_2020 VARCHAR);"""
         self.insert_table(table_index)
 
@@ -172,7 +172,7 @@ class RequestSql:
         table = f"""DROP TABLE IF EXISTS croisement_infogreffe_2018_2019;
         CREATE TABLE IF NOT EXISTS croisement_infogreffe_2018_2019(Siren VARCHAR,
                        Denomination_2018 VARCHAR, Forme_Juridique_2018 VARCHAR, Code_APE_2018 VARCHAR, 
-                       Adresse_2018 VARCHAR, Code_postal_2018 VARCHAR, Num_dept_2018 INT, Code_Greffe_2018 VARCHAR,
+                       Code_Greffe_2018 VARCHAR,
                        Date_immatriculation_2018 DATE, Date_radiation_2018 DATE, Statut_2018 VARCHAR,
                        Date_de_publication_2018 DATE, Millesime_2018 VARCHAR, Date_de_cloture_exercice_2018 DATE,
                        CA_2018 FLOAT, Resultat_2018 FLOAT, Effectif_2018 FLOAT, Millesime_2017 VARCHAR,
@@ -181,8 +181,8 @@ class RequestSql:
                        Effectif_2016 FLOAT, tranche_ca_millesime_2018 VARCHAR, tranche_ca_millesime_2017 VARCHAR,
                        tranche_ca_millesime_2016 VARCHAR,
                        Denomination_2019 VARCHAR, Forme_Juridique_2019 VARCHAR, Code_APE_2019 VARCHAR,
-                        Adresse_2019 VARCHAR, Code_postal_2019 VARCHAR, Num_dept_2019 INT, Code_Greffe_2019 VARCHAR,
-                        Date_immatriculation_2019 DATE, Date_radiation_2019 DATE, Statut_2019 VARCHAR,
+                       Code_Greffe_2019 VARCHAR,
+                       Date_immatriculation_2019 DATE, Date_radiation_2019 DATE, Statut_2019 VARCHAR,
                        Date_de_publication_2019 DATE, Millesime_2019 VARCHAR, Date_de_cloture_exercice_2019 DATE,
                        CA_2019 FLOAT, Résultat_2019 FLOAT, Effectif_2019 FLOAT, tranche_ca_millesime_1_2019 VARCHAR);
                        """
