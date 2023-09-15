@@ -13,7 +13,7 @@ import os
 class Analysis:
 
     def __init__(self):
-        self.path = os.getcwd()
+        self.path = 'C:\\Users\\OpenStudio.Aurora-R13\\Desktop\\IndexResilience'
         self.path_data_in = f"{self.path}/data/data_in"
         self.path_data_infogreffe = f"{self.path_data_in}/data_infogreffe"
         self.path_data_out = f"{self.path}/data/data_out/"

@@ -1,3 +1,5 @@
+import sys
+
 import pandas as pd
 import os
 import psycopg2
@@ -20,6 +22,11 @@ class RequestSql:
                                              host="localhost",
                                              port="5432",
                                              database="iat")
+        self.conn_naf = psycopg2.connect(user='iat',
+                                         password="bR3fTAk2VkCNbDPg",
+                                         host="localhost",
+                                         port="5432",
+                                         database='postgres')
 
     def insert_table(self, table_sql):
         conn_index = self.conn_pappers
@@ -249,23 +256,133 @@ class RequestSql:
         self.insert_table(table_index)
 
 
-    def select_data_export(self):
-        table = """SELECT * FROM data_export;"""
+    def select_data_export(self, year):
+        table = f"SELECT sum(valeur_en_euros) as valeur_en_euros, " \
+                f"sum(masse_kg) as masse_kg, " \
+                f"cpf, pays, naf " \
+                f"FROM data_export " \
+                f"WHERE annee = {year} " \
+                f"GROUP BY annee, cpf, pays, naf;"
         data = self.select_table(table)
+        print(f"load data export for year {year}")
         return data
 
-    def select_data_import(self):
-        table = """SELECT * FROM data_import;"""
+    def select_data_import(self, year):
+        table = f"SELECT sum(valeur_en_euros) as valeur_en_euros, " \
+                f"sum(masse_kg) as masse_kg, " \
+                f"cpf, pays, naf FROM data_import " \
+                f"WHERE annee = {year} " \
+                f" GROUP BY annee, cpf, pays, naf;"
         data = self.select_table(table)
+        print(f"load data import for year {year}")
         return data
 
-    def select_table(self, table):
-        conn = self.conn_pappers
+    def select_table(self, table, bdd='pappers'):
+        if bdd == 'pappers':
+            conn = self.conn_pappers
+        elif bdd == 'iat':
+            conn = self.conn_iat
+        elif bdd == 'nomenclature':
+            conn = self.conn_naf
+        else:
+            sys.exit()
+
         cur = conn.cursor()
         cur.execute(table)
         data = cur.fetchall()
         conn.commit()
         cur.close()
 
-        data = pd.DataFrame(data)
+        data = pd.DataFrame(data, columns=[desc[0] for desc in cur.description])
         return data
+
+    def select_iot_consume_nace(self):
+        table = """SELECT * FROM iot_consume_nace;"""
+        data = self.select_table(table, 'iat')
+        return data
+
+    def select_naf_cpf(self):
+        table = """SELECT DISTINCT LEFT(code_naf, 5) as naf,
+         LEFT(code_cpf, 4) as cpf 
+         FROM naf_cpf;"""
+
+        data = self.select_table(table, 'nomenclature')
+        return data
+
+    def insert_efficiency_naf(self, df):
+        table_index = """DROP TABLE IF EXISTS efficiency_naf;
+        CREATE TABLE IF NOT EXISTS effciency_naf(code_naf VARCHAR, efficiency_score FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, 'efficiency_naf')
+
+    def insert_efficiency_cpf(self, df):
+        table_index = """DROP TABLE IF EXISTS efficiency_cpf;
+        CREATE TABLE IF NOT EXISTS effciency_cpf(code_cpf VARCHAR, efficiency_score FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, 'efficiency_cpf')
+
+    def insert_redundancy_naf(self, df):
+        table_index = """DROP TABLE IF EXISTS redundancy_naf;
+        CREATE TABLE IF NOT EXISTS redundancy_naf(code_naf VARCHAR, redundancy_score FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, 'redundancy_naf')
+
+    def insert_redundancy_cpf(self, df):
+        table_index = """DROP TABLE IF EXISTS redundancy_cpf;
+        CREATE TABLE IF NOT EXISTS redundancy_cpf(code_cpf VARCHAR, redundancy_score FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, 'redundancy_cpf')
+
+    def insert_alpha_naf(self, df):
+        table_index = """DROP TABLE IF EXISTS alpha_naf;
+        CREATE TABLE IF NOT EXISTS alpha_naf(code_naf VARCHAR, alpha_score FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, 'alpha_naf')
+    def insert_alpha_cpf(self, df):
+        table_index = """DROP TABLE IF EXISTS alpha_cpf;
+        CREATE TABLE IF NOT EXISTS alpha_cpf(code_cpf VARCHAR, alpha_score FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, "alpha_cpf")
+
+
+    def insert_resilience_naf(self, df):
+        table_index = """DROP TABLE IF EXISTS resilience_naf;
+        CREATE TABLE IF NOT EXISTS resilience_naf(code_naf VARCHAR, resilience_score FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, "resilience_naf")
+
+
+    def insert_resilience_cpf(self, df):
+        table_index = """DROP TABLE IF EXISTS resilience_cpf;
+        CREATE TABLE IF NOT EXISTS resilience_cpf(code_cpf VARCHAR, resilience_score FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, "resilience_cpf")
+
+
+    def insert_resilience_indicateur_naf(self, df):
+        table_index = """DROP TABLE IF EXISTS resilience_indicateur_naf;
+        CREATE TABLE IF NOT EXISTS resilience_naf(code_naf VARCHAR, resilience_indicateur FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+        self.execute_values(df, "resilience_indicateur_naf")
+
+
+    def insert_resilience_indicateur_cpf(self, df):
+        table_index = """DROP TABLE IF EXISTS resilience_indicateur_cpf;
+        CREATE TABLE IF NOT EXISTS resilience_cpf(code_cpf VARCHAR, resilience_indicateur FLOAT, annee DATE);"""
+        self.insert_table(table_index)
+
+        self.execute_values(df, "resilience_indicateur_cpf")
+
+    def table_indicateur_resilience_cpf(self, df):
+        self.insert_efficiency_cpf(df[['cpf', 'efficiency', 'year']])
+        self.insert_redundancy_cpf(df[['cpf', 'redundancy', 'year']])
+        self.insert_alpha_cpf(df[['cpf', 'alpha', 'year']])
+        self.insert_resilience_cpf(df[['cpf', 'resilience', 'year']])
+        self.insert_resilience_indicateur_cpf(df[['cpf', 'index_resilience', 'year']])
+
+    def table_indicateur_resilience_naf(self, df):
+        self.insert_efficiency_naf(df[['naf', 'efficiency', 'year']])
+        self.insert_redundancy_naf(df[['naf', 'redundancy', 'year']])
+        self.insert_alpha_naf(df[['naf', 'alpha', 'year']])
+        self.insert_resilience_naf(df[['naf', 'resilience', 'year']])
+        self.insert_resilience_indicateur_naf(df[['naf', 'resilience', 'year']])
